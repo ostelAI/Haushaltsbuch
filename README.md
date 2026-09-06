@@ -49,20 +49,29 @@ window.HB_CONFIG = {
 > ungefährlich — geschützt werden die Daten durch die Regeln aus `schema.sql`,
 > nicht durch Geheimhaltung dieses Schlüssels.
 
-### 4. Anmelde-Adressen freischalten
+### 4. E-Mail-Bestätigung ausschalten
 
-Damit der Anmeldelink aus der E-Mail funktioniert, muss Supabase die Adresse
-deiner Seite kennen.
+Die App meldet mit **E-Mail und Passwort** an — bewusst ohne Bestätigungslink.
+Der eingebaute Mailversand von Supabase erlaubt auf dem kostenlosen Tarif nur
+wenige Nachrichten pro Stunde, und genau daran scheitert sonst jeder zweite
+Anmeldeversuch.
 
-**Project Settings** → **Authentication** → **URL Configuration**:
+**Authentication** → **Sign In / Providers** → **Email**:
 
-- **Site URL**: die Adresse, unter der die App später läuft
-  (z. B. `https://DEINNAME.github.io/Haushaltsbuch/`)
-- **Redirect URLs**: dieselbe Adresse eintragen, und fürs lokale Testen
-  zusätzlich `http://localhost:8777/`
+- **Confirm email** → **aus**
+- **Allow new users to sign up** → **an**
 
-Fertig. Beim ersten Öffnen legst du einen Haushalt an und kannst über
-**Einstellungen → Zweite Person einladen** einen Code erzeugen.
+Ohne diese Einstellung legt Supabase zwar Konten an, lässt aber niemanden
+hinein, bis eine Bestätigungsmail angeklickt wurde.
+
+> Ist das unsicher? Für eine App, die nur zwei Leute kennen, nein. Die
+> Bestätigung beweist lediglich, dass jemandem die E-Mail-Adresse gehört. Wer
+> ohne Einladungscode ein Konto anlegt, sieht ohnehin nichts — er landet auf
+> einem leeren Bildschirm ohne Zugriff auf euren Haushalt.
+
+Fertig. Beim ersten Öffnen legst du dir ein Konto an, danach einen Haushalt,
+und über **Einstellungen → Zweite Person einladen** einen Code für die zweite
+Person.
 
 ---
 
@@ -110,11 +119,12 @@ jedes Mal neu hochladen.
 
 ## Zu zweit nutzen
 
-1. Du legst den Haushalt an.
+1. Du legst dir ein Konto an und danach den Haushalt.
 2. **Einstellungen → Zweite Person einladen** → Code erscheint (14 Tage gültig).
 3. Den Code weitergeben — Zettel, Signal, wie ihr wollt.
-4. Die zweite Person öffnet dieselbe Adresse, meldet sich mit **ihrer eigenen**
-   E-Mail an und trägt den Code unter „Einer Einladung folgen" ein.
+4. Die zweite Person öffnet dieselbe Adresse, legt sich mit **ihrer eigenen**
+   E-Mail und einem eigenen Passwort ein Konto an und trägt den Code unter
+   „Einer Einladung folgen" ein.
 
 Ab dann seht ihr dieselben Zahlen, jeder mit eigenem Login.
 
@@ -133,10 +143,16 @@ Ab dann seht ihr dieselben Zahlen, jeder mit eigenem Login.
 
 ## Anmerkungen
 
-**Anmeldung ohne Passwort.** Die App verschickt Anmeldelinks per E-Mail. Der
-eingebaute Mailversand von Supabase ist auf wenige Nachrichten pro Stunde
-begrenzt — für zwei Personen, die sich selten neu anmelden, reicht das. Die
-Sitzung bleibt danach dauerhaft bestehen.
+**Anmeldung.** E-Mail und Passwort, keine Bestätigungsmails. Die Sitzung bleibt
+dauerhaft bestehen — im Alltag meldet ihr euch praktisch nie neu an. Das
+Passwort lässt sich in der App unter **Einstellungen → Passwort ändern**
+austauschen.
+
+**Passwort vergessen?** Es gibt bewusst keine „Passwort vergessen"-Funktion, die
+würde wieder E-Mails brauchen. Stattdessen: In Supabase unter **Authentication →
+Users** den betroffenen Benutzer löschen, dann in der App neu anlegen und mit
+dem Einladungscode wieder in den Haushalt holen. Die Daten des Haushalts bleiben
+dabei unangetastet, solange noch eine zweite Person Mitglied ist.
 
 **Offline.** Die App zeigt die zuletzt geladenen Zahlen aus einem
 Zwischenspeicher an, wenn keine Verbindung besteht. Eintragen geht offline

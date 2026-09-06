@@ -270,13 +270,17 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
   <div class="gate-card">
     <div class="gate-brand"><div class="mark">HB</div><h1>Haushaltsbuch</h1></div>
     <div class="gate-box">
-      <h2>Anmelden</h2>
-      <p>Gib deine E-Mail-Adresse ein. Du bekommst einen Link zugeschickt, mit dem du dich ohne Passwort anmeldest.</p>
+      <h2 id="authTitle">Anmelden</h2>
+      <p id="authIntro">E-Mail und Passwort eingeben — fertig.</p>
       <form class="form" id="authForm" autocomplete="on">
         <label class="f"><span>E-Mail</span><input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="du@beispiel.de" required></label>
-        <div class="actions"><button class="btn" type="submit" id="authSubmit">Anmeldelink schicken</button></div>
+        <label class="f"><span>Passwort</span><input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 6 Zeichen" required></label>
+        <div class="actions"><button class="btn" type="submit" id="authSubmit">Anmelden</button></div>
       </form>
       <div id="authMsg" style="margin-top:14px"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <button class="linkish" type="button" id="authToggle">Noch kein Konto? Hier anlegen</button>
+      </div>
     </div>
   </div>
 </div>
@@ -499,9 +503,17 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
           <button class="btn ghost sm" type="button" id="signOutBtn">Abmelden</button>
         </div>
         <div id="inviteBox" hidden style="margin-top:16px">
-          <p class="note" style="margin:0 0 10px">Diesen Code weitergeben. Die andere Person öffnet dieselbe Seite, meldet sich mit ihrer eigenen E-Mail an und trägt den Code ein. Gültig für 14 Tage.</p>
+          <p class="note" style="margin:0 0 10px">Diesen Code weitergeben. Die andere Person öffnet dieselbe Seite, legt sich mit ihrer eigenen E-Mail ein Konto an und trägt den Code ein. Gültig für 14 Tage.</p>
           <div class="code" id="inviteCode"></div>
         </div>
+
+        <form class="form" id="pwForm" autocomplete="off" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+          <p class="eyebrow" style="margin-bottom:4px">Passwort ändern</p>
+          <div class="row r-2">
+            <label class="f"><span>Neues Passwort</span><input id="pwNew" type="password" autocomplete="new-password" placeholder="mindestens 6 Zeichen"></label>
+            <label class="f end"><button class="btn ghost sm" type="submit">Passwort speichern</button></label>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -641,8 +653,14 @@ function errText(e){
   const m = String((e && (e.message || e.error_description)) || e || "");
   if (/Failed to fetch|NetworkError|ERR_INTERNET/i.test(m)) return "Keine Verbindung zur Datenbank. Prüf dein Internet und versuch es nochmal.";
   if (/Invalid API key|JWT/i.test(m)) return "Die Zugangsdaten in config.js stimmen nicht. Bitte Project URL und anon key prüfen.";
-  if (/rate limit|too many requests/i.test(m)) return "Zu viele Anmeldeversuche. Bitte ein paar Minuten warten.";
+  if (/rate limit|too many requests/i.test(m)) return "Zu viele Versuche. Bitte ein paar Minuten warten.";
   if (/Email address .* invalid|invalid email/i.test(m)) return "Diese E-Mail-Adresse sieht nicht gültig aus.";
+  if (/Invalid login credentials/i.test(m)) return "E-Mail oder Passwort stimmt nicht. Falls du noch kein Konto hast, leg unten eines an.";
+  if (/User already registered|already been registered/i.test(m)) return "Für diese E-Mail gibt es schon ein Konto. Wechsle oben auf „Anmelden“.";
+  if (/Email not confirmed/i.test(m)) return "Dieses Konto ist noch nicht bestätigt. Schalte in Supabase unter Authentication → Sign In / Providers → Email die Option „Confirm email“ aus.";
+  if (/Password should be at least|password.*6 characters/i.test(m)) return "Das Passwort braucht mindestens 6 Zeichen.";
+  if (/Signups not allowed|signup is disabled/i.test(m)) return "Neue Konten sind in Supabase gerade gesperrt (Authentication → Sign In / Providers → „Allow new users to sign up“).";
+  if (/weak password|pwned/i.test(m)) return "Dieses Passwort ist zu leicht zu erraten. Nimm ein längeres.";
   if (/row-level security|permission denied/i.test(m)) return "Kein Zugriff auf diese Daten. Bist du noch Mitglied des Haushalts?";
   return m || "Unbekannter Fehler";
 }
@@ -1154,7 +1172,7 @@ $("#yNext").addEventListener("click", () => { state.year++; renderYear(); });
 
 // Enter in einem Textfeld speichert das Formular — auch dort, wo der Browser
 // das implizite Absenden nicht selbst auslöst.
-["#expForm","#incForm","#fixForm","#catForm","#personForm","#goalForm","#hhForm","#authForm","#createForm","#joinForm"].forEach(sel => {
+["#expForm","#incForm","#fixForm","#catForm","#personForm","#goalForm","#hhForm","#pwForm","#authForm","#createForm","#joinForm"].forEach(sel => {
   const f = $(sel); if (!f) return;
   f.addEventListener("keydown", ev => {
     if (ev.key !== "Enter" || ev.shiftKey) return;
@@ -1349,6 +1367,17 @@ $("#inviteBtn").addEventListener("click", async () => {
   }catch(e){ toast(errText(e)); }
   btn.disabled = false;
 });
+$("#pwForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const pw = $("#pwNew").value;
+  if (pw.length < 6){ toast("Das Passwort braucht mindestens 6 Zeichen."); $("#pwNew").focus(); return; }
+  try{
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) throw error;
+    $("#pwNew").value = "";
+    toast("Passwort geändert");
+  }catch(err){ toast(errText(err)); }
+});
 $("#signOutBtn").addEventListener("click", async () => {
   if (!confirm("Abmelden? Eure Daten bleiben natürlich gespeichert.")) return;
   try{ localStorage.removeItem(LS_HH); localStorage.removeItem(LS_CACHE); }catch(e){}
@@ -1399,22 +1428,54 @@ window.addEventListener("offline", () => setConn(false, "offline"));
 document.addEventListener("visibilitychange", () => { if (!document.hidden && state.household) refreshAll(); });
 
 /* ============================ Anmeldung & Einstieg ============================ */
+let authMode = "signin";
+function setAuthMode(m){
+  authMode = m;
+  const anmelden = (m === "signin");
+  $("#authTitle").textContent  = anmelden ? "Anmelden" : "Konto anlegen";
+  $("#authIntro").textContent  = anmelden
+    ? "E-Mail und Passwort eingeben — fertig."
+    : "Wähl ein Passwort mit mindestens 6 Zeichen. Es wird kein Bestätigungslink verschickt.";
+  $("#authSubmit").textContent = anmelden ? "Anmelden" : "Konto anlegen";
+  $("#authPass").setAttribute("autocomplete", anmelden ? "current-password" : "new-password");
+  $("#authToggle").textContent = anmelden ? "Noch kein Konto? Hier anlegen" : "Schon ein Konto? Zur Anmeldung";
+  msgBox($("#authMsg"), "", "");
+}
+$("#authToggle").addEventListener("click", () => setAuthMode(authMode === "signin" ? "signup" : "signin"));
+
 $("#authForm").addEventListener("submit", async e => {
   e.preventDefault();
   const email = $("#authEmail").value.trim();
+  const pass  = $("#authPass").value;
+  if (authMode === "signup" && pass.length < 6){
+    msgBox($("#authMsg"), "err", "Das Passwort braucht mindestens 6 Zeichen.");
+    $("#authPass").focus();
+    return;
+  }
   const btn = $("#authSubmit"); btn.disabled = true;
-  msgBox($("#authMsg"), "info", "Wird gesendet …");
+  msgBox($("#authMsg"), "info", authMode === "signin" ? "Wird geprüft …" : "Konto wird angelegt …");
   try{
-    const { error } = await sb.auth.signInWithOtp({
-      email: email,
-      options: { emailRedirectTo: location.origin + location.pathname }
-    });
+    const { data, error } = (authMode === "signin")
+      ? await sb.auth.signInWithPassword({ email: email, password: pass })
+      : await sb.auth.signUp({ email: email, password: pass });
     if (error) throw error;
-    msgBox($("#authMsg"), "ok", "Wir haben dir eine E-Mail an " + email + " geschickt. Öffne den Link darin auf diesem Gerät — dann bist du drin. Schau notfalls im Spam-Ordner.");
+
+    if (!data.session){
+      // Kein Zugang trotz Erfolg: In Supabase ist die E-Mail-Bestätigung noch an.
+      msgBox($("#authMsg"), "info",
+        "Das Konto wurde angelegt, aber Supabase verlangt noch eine Bestätigung per E-Mail. " +
+        "Schalte unter Authentication → Sign In / Providers → Email die Option „Confirm email“ aus, " +
+        "dann kannst du dich sofort anmelden.");
+      btn.disabled = false;
+      return;
+    }
+    user = data.session.user;
+    $("#authPass").value = "";
+    await afterAuth();
   }catch(err){
     msgBox($("#authMsg"), "err", errText(err));
+    btn.disabled = false;
   }
-  btn.disabled = false;
 });
 
 $("#createForm").addEventListener("submit", async e => {
@@ -1489,13 +1550,15 @@ async function boot(){
     session = data.session;
   }catch(e){}
 
-  if (!session){ showScreen("screen-auth"); return; }
+  if (!session){ setAuthMode("signin"); showScreen("screen-auth"); return; }
   user = session.user;
+  await afterAuth();
+}
 
-  // Nach dem Klick auf den Anmeldelink hängen Tokens in der Adresszeile — weg damit.
-  if (location.hash && /access_token|error=/.test(location.hash)){
-    history.replaceState(null, "", location.pathname + location.search);
-  }
+// Läuft nach jeder erfolgreichen Anmeldung — egal ob beim Seitenaufruf mit
+// bestehender Sitzung oder direkt nach der Eingabe von E-Mail und Passwort.
+async function afterAuth(){
+  showScreen("screen-loading");
 
   let ids = [];
   try{ ids = await myHouseholds(); }

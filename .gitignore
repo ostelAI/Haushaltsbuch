@@ -1,0 +1,8 @@
+# Testdateien, gehören nicht ins Repository
+_test.html
+_mock.js
+_preview.html
+
+# Werkzeug-Konfiguration
+.claude/
+

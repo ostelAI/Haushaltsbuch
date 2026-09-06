@@ -349,7 +349,8 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
   <nav class="tabs" id="tabs" role="tablist">
     <button type="button" role="tab" data-tab="overview" aria-current="true">Überblick</button>
     <button type="button" role="tab" data-tab="daily">Ausgaben eintragen</button>
-    <button type="button" role="tab" data-tab="plan">Fixkosten &amp; Einnahmen</button>
+    <button type="button" role="tab" data-tab="fixed">Fixkosten</button>
+    <button type="button" role="tab" data-tab="income">Einnahmen</button>
     <button type="button" role="tab" data-tab="year">Jahr</button>
     <button type="button" role="tab" data-tab="settings">Einstellungen</button>
   </nav>
@@ -426,36 +427,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     </div>
   </section>
 
-  <section class="panel" id="p-plan">
-    <div class="card">
-      <div class="card-h"><h2 id="incFormTitle">Einnahme (monatlich)</h2><span class="eyebrow" id="incSum"></span></div>
-      <div class="card-b">
-        <form class="form" id="incForm" autocomplete="off">
-          <div class="row r-inc">
-            <label class="f"><span>Bezeichnung</span><input id="iName" placeholder="z. B. Gehalt" required></label>
-            <label class="f"><span>Betrag €</span><input id="iAmount" inputmode="decimal" placeholder="0,00" required></label>
-            <label class="f"><span>Von wem</span><select id="iPerson"></select></label>
-            <label class="f end"><button class="btn" type="submit" id="iSubmit">Hinzufügen</button></label>
-          </div>
-          <div class="row r-2">
-            <label class="f"><span>Rhythmus</span><select id="iEvery">
-              <option value="1">Jeden Monat</option>
-              <option value="3">Vierteljährlich (alle 3 Monate)</option>
-              <option value="6">Halbjährlich (alle 6 Monate)</option>
-              <option value="12">Jährlich (einmal im Jahr)</option>
-            </select></label>
-            <label class="f" id="iMonthWrap" hidden><span>In welchem Monat</span><select id="iMonth"></select></label>
-          </div>
-          <div class="row r-2">
-            <label class="f"><span>Gilt ab (optional)</span><input id="iFrom" type="month"></label>
-            <label class="f"><span>Gilt bis (optional)</span><input id="iTo" type="month"></label>
-          </div>
-          <div class="actions" id="iEditActions" hidden><button class="btn ghost sm" type="button" id="iCancel">Abbrechen</button></div>
-        </form>
-        <div class="list" id="incList" style="margin-top:16px"></div>
-      </div>
-    </div>
-
+  <section class="panel" id="p-fixed">
     <div class="card">
       <div class="card-h"><h2 id="fixFormTitle">Feste Ausgabe (monatlich)</h2><span class="eyebrow" id="fixSum"></span></div>
       <div class="card-b">
@@ -485,6 +457,38 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
         <div class="list" id="fixList" style="margin-top:16px"></div>
       </div>
     </div>
+  </section>
+
+  <section class="panel" id="p-income">
+    <div class="card">
+      <div class="card-h"><h2 id="incFormTitle">Einnahme (monatlich)</h2><span class="eyebrow" id="incSum"></span></div>
+      <div class="card-b">
+        <form class="form" id="incForm" autocomplete="off">
+          <div class="row r-inc">
+            <label class="f"><span>Bezeichnung</span><input id="iName" placeholder="z. B. Gehalt" required></label>
+            <label class="f"><span>Betrag €</span><input id="iAmount" inputmode="decimal" placeholder="0,00" required></label>
+            <label class="f"><span>Von wem</span><select id="iPerson"></select></label>
+            <label class="f end"><button class="btn" type="submit" id="iSubmit">Hinzufügen</button></label>
+          </div>
+          <div class="row r-2">
+            <label class="f"><span>Rhythmus</span><select id="iEvery">
+              <option value="1">Jeden Monat</option>
+              <option value="3">Vierteljährlich (alle 3 Monate)</option>
+              <option value="6">Halbjährlich (alle 6 Monate)</option>
+              <option value="12">Jährlich (einmal im Jahr)</option>
+            </select></label>
+            <label class="f" id="iMonthWrap" hidden><span>In welchem Monat</span><select id="iMonth"></select></label>
+          </div>
+          <div class="row r-2">
+            <label class="f"><span>Gilt ab (optional)</span><input id="iFrom" type="month"></label>
+            <label class="f"><span>Gilt bis (optional)</span><input id="iTo" type="month"></label>
+          </div>
+          <div class="actions" id="iEditActions" hidden><button class="btn ghost sm" type="button" id="iCancel">Abbrechen</button></div>
+        </form>
+        <div class="list" id="incList" style="margin-top:16px"></div>
+      </div>
+    </div>
+
   </section>
 
   <section class="panel" id="p-year">
@@ -610,7 +614,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
@@ -692,6 +696,7 @@ function errText(e){
   if (/Signups not allowed|signup is disabled/i.test(m)) return "Neue Konten sind in Supabase gerade gesperrt (Authentication → Sign In / Providers → „Allow new users to sign up“).";
   if (/weak password|pwned/i.test(m)) return "Dieses Passwort ist zu leicht zu erraten. Nimm ein längeres.";
   if (/row-level security|permission denied/i.test(m)) return "Kein Zugriff auf diese Daten. Bist du noch Mitglied des Haushalts?";
+  if (/schema cache|PGRST204|Could not find the/i.test(m)) return "Die Datenbank ist noch nicht auf dem neuesten Stand — führ das letzte SQL-Update aus schema.sql im Supabase SQL Editor aus, dann geht's weiter.";
   return m || "Unbekannter Fehler";
 }
 function setConn(ok, text){
@@ -916,7 +921,8 @@ function render(){
   $("#todayBtn").hidden = (state.ym === ymOf(new Date()));
   if (state.tab === "overview") renderOverview();
   if (state.tab === "daily")    renderDaily();
-  if (state.tab === "plan")     renderPlan();
+  if (state.tab === "fixed")    renderFixed();
+  if (state.tab === "income")   renderIncome();
   if (state.tab === "year")     renderYear();
   if (state.tab === "settings") renderSettings();
   fillCatSelects();
@@ -1053,14 +1059,14 @@ function renderDaily(){
   }).join("");
 }
 
-function renderPlan(){
+function renderIncome(){
   $("#incSum").textContent = eur(incomeFor(state.ym)) + " in " + ymLabel(state.ym);
-  $("#fixSum").textContent = eur(fixedFor(state.ym)) + " in " + ymLabel(state.ym);
-
   const inc = Object.entries(state.plan.income).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
   $("#incList").innerHTML = inc.length ? inc.map(([id,i]) => planRow(id, i, "income")).join("")
     : '<p class="empty">Noch keine Einnahme hinterlegt.<br>Gehalt, Kindergeld, Nebenjob — alles, was monatlich reinkommt.</p>';
-
+}
+function renderFixed(){
+  $("#fixSum").textContent = eur(fixedFor(state.ym)) + " in " + ymLabel(state.ym);
   const fx = Object.entries(state.plan.fixed).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
   $("#fixList").innerHTML = fx.length ? fx.map(([id,f]) => planRow(id, f, "fixed")).join("")
     : '<p class="empty">Noch keine feste Ausgabe hinterlegt.<br>Miete, Strom, Handy, Versicherungen, Abos.</p>';
@@ -1405,7 +1411,7 @@ $("#app").addEventListener("click", async e => {
       $("#fixFormTitle").textContent = "Feste Ausgabe bearbeiten"; $("#xSubmit").textContent = "Speichern"; $("#xEditActions").hidden = false;
       $("#xName").focus();
     }
-    renderPlan();
+    if (kind === "income") renderIncome(); else renderFixed();
   }
 });
 

@@ -16,6 +16,6 @@
 // ============================================================================
 
 window.HB_CONFIG = {
-  url:     "",
-  anonKey: ""
+  url:     "https://hdmcflojfeoruhqbpppy.supabase.co",
+  anonKey: "sb_publishable_5UdjmwVF1kpIAc_r8N2RyQ_Nkvb-yde"
 };

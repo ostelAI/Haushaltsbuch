@@ -267,3 +267,14 @@ do $$
 begin
   alter publication supabase_realtime add table public.households;
 exception when others then null; end $$;
+
+-- ------------------------------------------------- Nachtrag: Rechte enger --
+-- Supabase vergibt per Voreinstellung Ausführungsrechte auf Funktionen im
+-- public-Schema auch an die Rolle anon (nicht angemeldete Besucher). Die
+-- Funktionen oben prüfen zwar selbst, ob jemand angemeldet und Mitglied ist —
+-- aber wer nicht angemeldet ist, soll sie gar nicht erst betreten können.
+
+revoke execute on function public.is_member(uuid)          from anon;
+revoke execute on function public.create_household(text)   from anon;
+revoke execute on function public.create_invite(uuid)      from anon;
+revoke execute on function public.join_household(text)     from anon;

@@ -5,8 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#12463C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Haushaltsbuch">
 <title>Haushaltsbuch</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2312463C'/><text y='.9em' x='50' text-anchor='middle' font-size='52' font-family='sans-serif' font-weight='bold' fill='%23fff'>HB</text></svg>">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -568,6 +576,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
           <div class="actions">
             <button class="btn ghost sm" type="button" id="exportBtn">Alles als CSV sichern</button>
           </div>
+          <p class="eyebrow" id="versionTag" style="margin-top:16px"></p>
         </div>
       </div>
     </div>
@@ -582,6 +591,8 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 <script>
 (function(){
 "use strict";
+
+const APP_VERSION = "1.0.0";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
@@ -1124,6 +1135,7 @@ function renderSettings(){
     : '<p class="empty" style="padding:14px 0">Noch keine Person eingetragen.</p>';
 
   if (document.activeElement !== $("#gAmount")) $("#gAmount").value = state.plan.goal ? nf.format(state.plan.goal) : "";
+  $("#versionTag").textContent = "Haushaltsbuch " + APP_VERSION;
 }
 
 function fillCatSelects(){

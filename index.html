@@ -75,6 +75,7 @@ header.top{position:sticky; top:0; z-index:20; background:var(--paper); border-b
   display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;flex:none
 }
 .brand h1{font-size:18px; font-weight:600; letter-spacing:-.015em}
+.brand .ver{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);white-space:nowrap;align-self:flex-end;margin:0 0 3px}
 .stepper{display:flex; align-items:center; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:3px}
 .stepper button{background:none;border:0;cursor:pointer;color:var(--ink-2);width:30px;height:28px;border-radius:999px;display:grid;place-items:center}
 .stepper button:hover{background:var(--surface-2); color:var(--ink)}
@@ -331,7 +332,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 <div id="app" hidden>
 <header class="top">
   <div class="top-in">
-    <div class="brand"><div class="mark">HB</div><h1 id="brandName">Haushaltsbuch</h1></div>
+    <div class="brand"><div class="mark">HB</div><h1 id="brandName">Haushaltsbuch</h1><span class="ver" id="verBadge"></span></div>
     <div class="monthnav">
       <div class="stepper">
         <button id="prevM" type="button" aria-label="Vorheriger Monat">&#9664;</button>
@@ -437,6 +438,15 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <label class="f end"><button class="btn" type="submit" id="iSubmit">Hinzufügen</button></label>
           </div>
           <div class="row r-2">
+            <label class="f"><span>Rhythmus</span><select id="iEvery">
+              <option value="1">Jeden Monat</option>
+              <option value="3">Vierteljährlich (alle 3 Monate)</option>
+              <option value="6">Halbjährlich (alle 6 Monate)</option>
+              <option value="12">Jährlich (einmal im Jahr)</option>
+            </select></label>
+            <label class="f" id="iMonthWrap" hidden><span>In welchem Monat</span><select id="iMonth"></select></label>
+          </div>
+          <div class="row r-2">
             <label class="f"><span>Gilt ab (optional)</span><input id="iFrom" type="month"></label>
             <label class="f"><span>Gilt bis (optional)</span><input id="iTo" type="month"></label>
           </div>
@@ -456,6 +466,15 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <label class="f"><span>Kategorie</span><select id="xCat"></select></label>
             <label class="f"><span>Fällig am</span><input id="xDay" type="number" min="1" max="31" placeholder="1"></label>
             <label class="f end"><button class="btn" type="submit" id="xSubmit">Hinzufügen</button></label>
+          </div>
+          <div class="row r-2">
+            <label class="f"><span>Rhythmus</span><select id="xEvery">
+              <option value="1">Jeden Monat</option>
+              <option value="3">Vierteljährlich (alle 3 Monate)</option>
+              <option value="6">Halbjährlich (alle 6 Monate)</option>
+              <option value="12">Jährlich (einmal im Jahr) — z. B. Kfz-Steuer</option>
+            </select></label>
+            <label class="f" id="xMonthWrap" hidden><span>In welchem Monat</span><select id="xMonth"></select></label>
           </div>
           <div class="row r-2">
             <label class="f"><span>Gilt ab (optional)</span><input id="xFrom" type="month"></label>
@@ -576,7 +595,6 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
           <div class="actions">
             <button class="btn ghost sm" type="button" id="exportBtn">Alles als CSV sichern</button>
           </div>
-          <p class="eyebrow" id="versionTag" style="margin-top:16px"></p>
         </div>
       </div>
     </div>
@@ -592,7 +610,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
@@ -619,6 +637,7 @@ let sb = null, user = null, channel = null;
 
 const $  = (s, r) => (r||document).querySelector(s);
 const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
+$("#verBadge").textContent = "v" + APP_VERSION;
 
 function ymOf(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
 function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -711,7 +730,8 @@ function rowsToPlan(hh, cats, items){
   plan.people = Array.isArray(hh.people) ? hh.people.slice() : [];
   plan.categories = (cats||[]).map(c => ({ id: c.id, name: c.name, ci: Number(c.color_index)||0 }));
   (items||[]).forEach(it => {
-    const base = { name: it.name, amount: Number(it.amount)||0, from: it.valid_from || "", to: it.valid_to || "" };
+    const base = { name: it.name, amount: Number(it.amount)||0, from: it.valid_from || "", to: it.valid_to || "",
+                    every: Number(it.interval_months)||1, anchorMonth: Number(it.anchor_month)||1 };
     if (it.kind === "income") plan.income[it.id] = Object.assign(base, { person: it.person || "" });
     else plan.fixed[it.id] = Object.assign(base, { cat: it.category_id || "", day: it.due_day || "" });
   });
@@ -838,20 +858,34 @@ function activeIn(item, ym){
   if (item.to && item.to < ym) return false;
   return true;
 }
+// Ob ein Posten mit Rhythmus (jeden Monat / vierteljährlich / halbjährlich /
+// jährlich) ausgerechnet im Monat ym fällig ist. every=1 (Standard, jeden
+// Monat) ist immer fällig — das erhält das bisherige Verhalten unverändert.
+function duesIn(item, ym){
+  const every = Number(item.every) || 1;
+  if (every <= 1) return true;
+  const m = Number(ym.slice(5,7));
+  const a = Number(item.anchorMonth) || 1;
+  return ((m - a) % every + every) % every === 0;
+}
 function incomeFor(ym){
-  let s = 0; Object.values(state.plan.income).forEach(i => { if (activeIn(i, ym)) s += Number(i.amount)||0; }); return s;
+  let s = 0; Object.values(state.plan.income).forEach(i => { if (activeIn(i, ym) && duesIn(i, ym)) s += Number(i.amount)||0; }); return s;
 }
 function fixedFor(ym){
-  let s = 0; Object.values(state.plan.fixed).forEach(f => { if (activeIn(f, ym)) s += Number(f.amount)||0; }); return s;
+  let s = 0; Object.values(state.plan.fixed).forEach(f => { if (activeIn(f, ym) && duesIn(f, ym)) s += Number(f.amount)||0; }); return s;
 }
 function fixedByCat(ym){
   const m = {};
   Object.values(state.plan.fixed).forEach(f => {
-    if (!activeIn(f, ym)) return;
+    if (!activeIn(f, ym) || !duesIn(f, ym)) return;
     const c = f.cat || "_";
     m[c] = (m[c]||0) + (Number(f.amount)||0);
   });
   return m;
+}
+function rhythmWord(n){
+  n = Number(n) || 1;
+  return n===12 ? "jährlich" : n===6 ? "halbjährlich" : n===3 ? "vierteljährlich" : "";
 }
 function varSum(entries){ return Object.values(entries||{}).reduce((s,e)=> s + (Number(e.a)||0), 0); }
 function varByCat(entries){
@@ -1034,16 +1068,21 @@ function renderPlan(){
 
 function planRow(id, it, kind){
   const meta = [];
+  const every = Number(it.every) || 1;
+  const rhythmText = every > 1 ? rhythmWord(every) + ", im " + MONTHS[(Number(it.anchorMonth)||1) - 1] : "";
   if (kind === "fixed"){
     const c = catById(it.cat);
     meta.push('<span><span class="dotchip" style="background:' + catColor(c) + '"></span>' + esc(c.name) + "</span>");
-    if (it.day) meta.push("<span>fällig am " + esc(it.day) + ".</span>");
-  } else if (it.person){
-    meta.push("<span>" + esc(it.person) + "</span>");
+    if (rhythmText) meta.push("<span>" + esc(rhythmText) + (it.day ? ", am " + esc(it.day) + "." : "") + "</span>");
+    else if (it.day) meta.push("<span>fällig am " + esc(it.day) + ".</span>");
+  } else {
+    if (it.person) meta.push("<span>" + esc(it.person) + "</span>");
+    if (rhythmText) meta.push("<span>" + esc(rhythmText) + "</span>");
   }
   if (it.from) meta.push("<span>ab " + esc(ymLabel(it.from)) + "</span>");
   if (it.to)   meta.push("<span>bis " + esc(ymLabel(it.to)) + "</span>");
   if (!activeIn(it, state.ym)) meta.push('<span style="color:var(--warn)">in ' + esc(ymLabel(state.ym)) + " nicht aktiv</span>");
+  else if (!duesIn(it, state.ym)) meta.push('<span style="color:var(--ink-3)">in ' + esc(ymLabel(state.ym)) + " nicht fällig</span>");
   const editing = (kind === "income" ? state.editIncome : state.editFixed) === id;
   return '<div class="item' + (editing ? " editing" : "") + '">' +
     '<div class="item-main"><div class="t">' + esc(it.name) + '</div><div class="m">' + meta.join("") + "</div></div>" +
@@ -1135,15 +1174,15 @@ function renderSettings(){
     : '<p class="empty" style="padding:14px 0">Noch keine Person eingetragen.</p>';
 
   if (document.activeElement !== $("#gAmount")) $("#gAmount").value = state.plan.goal ? nf.format(state.plan.goal) : "";
-  $("#versionTag").textContent = "Haushaltsbuch " + APP_VERSION;
 }
 
 function fillCatSelects(){
   const opts = state.plan.categories.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
-  [["#eCat",""],["#xCat",""],["#fCat",'<option value="">Alle Kategorien</option>']].forEach(([sel,lead]) => {
+  const addOpt = '<option value="__new__">+ Neue Kategorie…</option>';
+  [["#eCat","",true],["#xCat","",true],["#fCat",'<option value="">Alle Kategorien</option>',false]].forEach(([sel,lead,withAdd]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
-    el.innerHTML = lead + opts;
+    el.innerHTML = lead + opts + (withAdd ? addOpt : "");
     if (keep && Array.from(el.options).some(o=>o.value===keep)) el.value = keep;
   });
 }
@@ -1156,6 +1195,33 @@ function fillPersonSelects(){
     el.innerHTML = lead + ppl.map(p => '<option value="' + esc(p) + '">' + esc(p) + "</option>").join("");
     if (keep && Array.from(el.options).some(o=>o.value===keep)) el.value = keep;
   });
+}
+
+// Kategorie direkt aus der Ausgaben- oder Fixkosten-Auswahl anlegen, ohne
+// den Umweg über die Einstellungen — praktisch, wenn beim Eintragen auffällt,
+// dass eine passende Kategorie noch fehlt.
+["#eCat","#xCat"].forEach(sel => {
+  $(sel).addEventListener("change", e => {
+    if (e.target.value === "__new__") quickAddCategory(e.target);
+  });
+});
+async function quickAddCategory(selectEl){
+  const name = (prompt("Name der neuen Kategorie:") || "").trim();
+  const fallback = (state.plan.categories[0] && state.plan.categories[0].id) || "";
+  if (!name){ selectEl.value = fallback; return; }
+  const pos = state.plan.categories.length;
+  try{
+    const { data, error } = await sb.from("categories")
+      .insert({ household_id: state.household.id, name: name, color_index: pos % 8, position: pos })
+      .select().single();
+    if (error) throw error;
+    await reloadPlanAndRender();
+    selectEl.value = data.id;
+    toast("Kategorie „" + name + "“ angelegt");
+  }catch(err){
+    toast(errText(err));
+    selectEl.value = fallback;
+  }
 }
 
 /* ============================ Bedienung ============================ */
@@ -1245,10 +1311,25 @@ $("#expList").addEventListener("click", async e => {
 $("#fCat").addEventListener("change", renderDaily);
 $("#fText").addEventListener("input", renderDaily);
 
+// Monatsauswahl für den Rhythmus, einmalig befüllt — ändert sich nie zur Laufzeit.
+(function fillMonthSelects(){
+  const opts = MONTHS.map((m,i) => '<option value="' + (i+1) + '">' + m + "</option>").join("");
+  $("#iMonth").innerHTML = opts; $("#xMonth").innerHTML = opts;
+})();
+["#iEvery","#xEvery"].forEach(sel => {
+  $(sel).addEventListener("change", e => {
+    const wrap = $(sel === "#iEvery" ? "#iMonthWrap" : "#xMonthWrap");
+    const monthSel = $(sel === "#iEvery" ? "#iMonth" : "#xMonth");
+    wrap.hidden = e.target.value === "1";
+    if (!wrap.hidden && !monthSel.value) monthSel.value = String(new Date().getMonth() + 1);
+  });
+});
+
 /* --- Einnahmen --- */
 function resetIncForm(){
   state.editIncome = null;
   $("#incForm").reset();
+  $("#iEvery").value = "1"; $("#iMonthWrap").hidden = true;
   $("#incFormTitle").textContent = "Einnahme (monatlich)";
   $("#iSubmit").textContent = "Hinzufügen";
   $("#iEditActions").hidden = true;
@@ -1258,8 +1339,10 @@ $("#incForm").addEventListener("submit", async e => {
   const amount = parseAmount($("#iAmount").value);
   if (!isFinite(amount)){ toast("Bitte einen Betrag eingeben"); return; }
   const id = state.editIncome, wasEdit = !!id;
+  const every = parseInt($("#iEvery").value, 10) || 1;
   const fields = { name: $("#iName").value.trim() || "Einnahme", amount: Math.abs(amount),
                    person: $("#iPerson").value || null, category_id: null,
+                   interval_months: every, anchor_month: every > 1 ? (parseInt($("#iMonth").value,10) || 1) : 1,
                    valid_from: $("#iFrom").value || null, valid_to: $("#iTo").value || null };
   resetIncForm();
   if (await savePlanItem("income", id, fields)) toast(wasEdit ? "Einnahme geändert" : "Einnahme hinzugefügt");
@@ -1270,6 +1353,7 @@ $("#iCancel").addEventListener("click", () => { resetIncForm(); render(); });
 function resetFixForm(){
   state.editFixed = null;
   $("#fixForm").reset();
+  $("#xEvery").value = "1"; $("#xMonthWrap").hidden = true;
   $("#fixFormTitle").textContent = "Feste Ausgabe (monatlich)";
   $("#xSubmit").textContent = "Hinzufügen";
   $("#xEditActions").hidden = true;
@@ -1280,9 +1364,11 @@ $("#fixForm").addEventListener("submit", async e => {
   if (!isFinite(amount)){ toast("Bitte einen Betrag eingeben"); return; }
   const day = parseInt($("#xDay").value, 10);
   const id = state.editFixed, wasEdit = !!id;
+  const every = parseInt($("#xEvery").value, 10) || 1;
   const fields = { name: $("#xName").value.trim() || "Feste Ausgabe", amount: Math.abs(amount),
                    category_id: $("#xCat").value || null, person: null,
                    due_day: (day >= 1 && day <= 31) ? day : null,
+                   interval_months: every, anchor_month: every > 1 ? (parseInt($("#xMonth").value,10) || 1) : 1,
                    valid_from: $("#xFrom").value || null, valid_to: $("#xTo").value || null };
   resetFixForm();
   if (await savePlanItem("fixed", id, fields)) toast(wasEdit ? "Feste Ausgabe geändert" : "Feste Ausgabe hinzugefügt");
@@ -1305,6 +1391,8 @@ $("#app").addEventListener("click", async e => {
       state.editIncome = id;
       $("#iName").value = it.name; $("#iAmount").value = nf.format(it.amount);
       $("#iPerson").value = it.person || ""; $("#iFrom").value = it.from || ""; $("#iTo").value = it.to || "";
+      $("#iEvery").value = String(it.every || 1); $("#iMonthWrap").hidden = (it.every || 1) <= 1;
+      $("#iMonth").value = String(it.anchorMonth || 1);
       $("#incFormTitle").textContent = "Einnahme bearbeiten"; $("#iSubmit").textContent = "Speichern"; $("#iEditActions").hidden = false;
       $("#iName").focus();
     } else {
@@ -1312,6 +1400,8 @@ $("#app").addEventListener("click", async e => {
       state.editFixed = id;
       $("#xName").value = it.name; $("#xAmount").value = nf.format(it.amount); $("#xCat").value = it.cat;
       $("#xDay").value = it.day || ""; $("#xFrom").value = it.from || ""; $("#xTo").value = it.to || "";
+      $("#xEvery").value = String(it.every || 1); $("#xMonthWrap").hidden = (it.every || 1) <= 1;
+      $("#xMonth").value = String(it.anchorMonth || 1);
       $("#fixFormTitle").textContent = "Feste Ausgabe bearbeiten"; $("#xSubmit").textContent = "Speichern"; $("#xEditActions").hidden = false;
       $("#xName").focus();
     }
@@ -1404,10 +1494,10 @@ $("#exportBtn").addEventListener("click", async () => {
   try{
     const r = await sb.from("expenses").select("*").eq("household_id", state.household.id).order("spent_on");
     if (r.error) throw r.error;
-    const rows = [["Typ","Zeitraum","Datum","Bezeichnung","Kategorie","Person","Betrag EUR"]];
-    Object.values(state.plan.income).forEach(i => rows.push(["Einnahme (monatlich)", (i.from||"") + (i.to?" bis "+i.to:""), "", i.name, "", i.person||"", nf.format(i.amount)]));
-    Object.values(state.plan.fixed).forEach(f => rows.push(["Feste Ausgabe (monatlich)", (f.from||"") + (f.to?" bis "+f.to:""), f.day?("am "+f.day+"."):"", f.name, catById(f.cat).name, "", nf.format(f.amount)]));
-    (r.data||[]).forEach(e => rows.push(["Ausgabe", String(e.spent_on).slice(0,7), e.spent_on, e.note||"", catById(e.category_id).name, e.person||"", nf.format(Number(e.amount)||0)]));
+    const rows = [["Typ","Rhythmus","Zeitraum","Datum","Bezeichnung","Kategorie","Person","Betrag EUR"]];
+    Object.values(state.plan.income).forEach(i => rows.push(["Einnahme", rhythmWord(i.every) || "monatlich", (i.from||"") + (i.to?" bis "+i.to:""), "", i.name, "", i.person||"", nf.format(i.amount)]));
+    Object.values(state.plan.fixed).forEach(f => rows.push(["Feste Ausgabe", rhythmWord(f.every) || "monatlich", (f.from||"") + (f.to?" bis "+f.to:""), f.day?("am "+f.day+"."):"", f.name, catById(f.cat).name, "", nf.format(f.amount)]));
+    (r.data||[]).forEach(e => rows.push(["Ausgabe", "", String(e.spent_on).slice(0,7), e.spent_on, e.note||"", catById(e.category_id).name, e.person||"", nf.format(Number(e.amount)||0)]));
     const csv = "﻿" + rows.map(x => x.map(csvCell).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
     const a = document.createElement("a");

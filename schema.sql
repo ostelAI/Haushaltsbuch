@@ -278,3 +278,14 @@ revoke execute on function public.is_member(uuid)          from anon;
 revoke execute on function public.create_household(text)   from anon;
 revoke execute on function public.create_invite(uuid)      from anon;
 revoke execute on function public.join_household(text)     from anon;
+
+-- ------------------------------------------------- Nachtrag: Rhythmus --
+-- Manche Fixkosten und Einnahmen fallen nicht jeden Monat an (Kfz-Steuer,
+-- Weihnachtsgeld, halbjährliche Prämien). interval_months sagt, alle wie
+-- viele Monate der Posten anfällt — 1 ist der Standard (jeden Monat) und
+-- bleibt für alle bisherigen Posten unverändert; anchor_month legt fest,
+-- in welchem Kalendermonat (1-12) einer der Zyklen liegt.
+alter table public.plan_items add column if not exists interval_months smallint not null default 1
+  check (interval_months in (1,3,6,12));
+alter table public.plan_items add column if not exists anchor_month smallint not null default 1
+  check (anchor_month between 1 and 12);

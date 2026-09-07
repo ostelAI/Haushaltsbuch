@@ -457,8 +457,9 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
               <option value="6">Halbjährlich (alle 6 Monate)</option>
               <option value="12">Jährlich (einmal im Jahr) — z. B. Kfz-Steuer</option>
             </select></label>
-            <label class="f" id="xMonthWrap" hidden><span>In welchem Monat</span><select id="xMonth"></select></label>
+            <label class="f" id="xMonthWrap" hidden><span>Fälligkeitsmonat</span><select id="xMonth"></select></label>
           </div>
+          <p class="tagline" id="xRhythmHint" hidden style="margin:-4px 0 0"></p>
           <div class="row r-2">
             <label class="f"><span>Gilt ab (optional)</span><input id="xFrom" type="month"></label>
             <label class="f"><span>Gilt bis (optional)</span><input id="xTo" type="month"></label>
@@ -490,8 +491,9 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
               <option value="6">Halbjährlich (alle 6 Monate)</option>
               <option value="12">Jährlich (einmal im Jahr)</option>
             </select></label>
-            <label class="f" id="iMonthWrap" hidden><span>In welchem Monat</span><select id="iMonth"></select></label>
+            <label class="f" id="iMonthWrap" hidden><span>Fälligkeitsmonat</span><select id="iMonth"></select></label>
           </div>
+          <p class="tagline" id="iRhythmHint" hidden style="margin:-4px 0 0"></p>
           <div class="row r-2">
             <label class="f"><span>Gilt ab (optional)</span><input id="iFrom" type="month"></label>
             <label class="f"><span>Gilt bis (optional)</span><input id="iTo" type="month"></label>
@@ -630,7 +632,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.1.03";
+const APP_VERSION = "1.1.04";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
@@ -1399,20 +1401,40 @@ $("#fText").addEventListener("input", renderDaily);
   const opts = MONTHS.map((m,i) => '<option value="' + (i+1) + '">' + m + "</option>").join("");
   $("#iMonth").innerHTML = opts; $("#xMonth").innerHTML = opts;
 })();
-["#iEvery","#xEvery"].forEach(sel => {
-  $(sel).addEventListener("change", e => {
-    const wrap = $(sel === "#iEvery" ? "#iMonthWrap" : "#xMonthWrap");
-    const monthSel = $(sel === "#iEvery" ? "#iMonth" : "#xMonth");
-    wrap.hidden = e.target.value === "1";
-    if (!wrap.hidden && !monthSel.value) monthSel.value = String(new Date().getMonth() + 1);
-  });
+// Alle Monate, in denen ein Posten mit diesem Rhythmus fällig wird. Bei
+// "vierteljährlich" ist der gewählte Monat nicht der einzige, sondern der
+// Ausgangspunkt — deshalb zeigen wir die Folge direkt an.
+function faelligeMonate(every, anchor){
+  every = Number(every) || 1; anchor = Number(anchor) || 1;
+  if (every <= 1) return [];
+  const out = [];
+  for (let m = anchor; m <= 12; m += every) out.push(MONTHS[m-1]);
+  for (let m = anchor - every; m >= 1; m -= every) out.unshift(MONTHS[m-1]);
+  return out;
+}
+function updateRhythmHint(praefix){
+  const every = $("#" + praefix + "Every").value;
+  const wrap  = $("#" + praefix + "MonthWrap");
+  const monat = $("#" + praefix + "Month");
+  const hint  = $("#" + praefix + "RhythmHint");
+  wrap.hidden = (every === "1");
+  if (wrap.hidden){ hint.hidden = true; return; }
+  if (!monat.value) monat.value = String(new Date().getMonth() + 1);
+  const liste = faelligeMonate(every, monat.value);
+  hint.textContent = liste.length > 1
+    ? "Fällig im " + liste.join(", ")
+    : "Fällig jedes Jahr im " + liste[0];
+  hint.hidden = false;
+}
+[["i","#iEvery"],["i","#iMonth"],["x","#xEvery"],["x","#xMonth"]].forEach(([praefix, sel]) => {
+  $(sel).addEventListener("change", () => updateRhythmHint(praefix));
 });
 
 /* --- Einnahmen --- */
 function resetIncForm(){
   state.editIncome = null;
   $("#incForm").reset();
-  $("#iEvery").value = "1"; $("#iMonthWrap").hidden = true;
+  $("#iEvery").value = "1"; $("#iMonthWrap").hidden = true; $("#iRhythmHint").hidden = true;
   $("#incFormTitle").textContent = "Neue Einnahme";
   $("#iSubmit").textContent = "Hinzufügen";
   $("#iCancel").hidden = true;
@@ -1436,7 +1458,7 @@ $("#iCancel").addEventListener("click", () => { resetIncForm(); render(); });
 function resetFixForm(){
   state.editFixed = null;
   $("#fixForm").reset();
-  $("#xEvery").value = "1"; $("#xMonthWrap").hidden = true;
+  $("#xEvery").value = "1"; $("#xMonthWrap").hidden = true; $("#xRhythmHint").hidden = true;
   $("#fixFormTitle").textContent = "Neue feste Ausgabe";
   $("#xSubmit").textContent = "Hinzufügen";
   $("#xCancel").hidden = true;
@@ -1474,8 +1496,9 @@ $("#app").addEventListener("click", async e => {
       state.editIncome = id;
       $("#iName").value = it.name; $("#iAmount").value = nf.format(it.amount);
       $("#iPerson").value = it.person || ""; $("#iFrom").value = it.from || ""; $("#iTo").value = it.to || "";
-      $("#iEvery").value = String(it.every || 1); $("#iMonthWrap").hidden = (it.every || 1) <= 1;
+      $("#iEvery").value = String(it.every || 1);
       $("#iMonth").value = String(it.anchorMonth || 1);
+      updateRhythmHint("i");
       $("#incFormTitle").textContent = "Einnahme bearbeiten"; $("#iSubmit").textContent = "Speichern"; $("#iCancel").hidden = false;
       $("#iName").focus();
     } else {
@@ -1483,8 +1506,9 @@ $("#app").addEventListener("click", async e => {
       state.editFixed = id;
       $("#xName").value = it.name; $("#xAmount").value = nf.format(it.amount); $("#xCat").value = it.cat;
       $("#xDay").value = it.day || ""; $("#xFrom").value = it.from || ""; $("#xTo").value = it.to || "";
-      $("#xEvery").value = String(it.every || 1); $("#xMonthWrap").hidden = (it.every || 1) <= 1;
+      $("#xEvery").value = String(it.every || 1);
       $("#xMonth").value = String(it.anchorMonth || 1);
+      updateRhythmHint("x");
       $("#fixFormTitle").textContent = "Feste Ausgabe bearbeiten"; $("#xSubmit").textContent = "Speichern"; $("#xCancel").hidden = false;
       $("#xName").focus();
     }

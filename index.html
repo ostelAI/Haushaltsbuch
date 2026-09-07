@@ -105,7 +105,7 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px 0}
-.card-h h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.card-h h2{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.35}
 .card-b{padding:14px 16px}
 .panel{display:none}
 .panel.active{display:grid;gap:14px}
@@ -160,10 +160,22 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .row{display:grid;gap:9px}
 @media(min-width:660px){
   .row.r-exp{grid-template-columns:120px 1fr 150px}
-  .row.r-exp2{grid-template-columns:1fr 1fr auto}
-  .row.r-fix{grid-template-columns:1fr 120px 150px 90px auto}
-  .row.r-inc{grid-template-columns:1fr 120px 150px auto}
+  .row.r-exp2{grid-template-columns:1fr 1fr}
+  .row.r-fix{grid-template-columns:1fr 120px 150px 90px}
+  .row.r-inc{grid-template-columns:1fr 120px 150px}
   .row.r-2{grid-template-columns:1fr 1fr}
+}
+/* Auf dem Handy stapelt sich alles untereinander. Damit die Knöpfe nicht
+   schmaler als die Felder darüber stehen und die Kante ausfransen lassen,
+   laufen sie dort über die volle Breite. */
+@media(max-width:659px){
+  .form .actions{display:grid;grid-template-columns:1fr;gap:9px}
+  .form .actions .btn{width:100%;padding:12px 16px}
+  label.f.end .btn{width:100%;padding:12px 16px}
+  /* Überschrift und Summe nebeneinander wird auf schmalen Schirmen zu eng —
+     beide brechen dann mitten im Wort um. Untereinander liest es sich sauber. */
+  .card-h{flex-direction:column;align-items:flex-start;gap:2px}
+  nav.tabs button{padding:7px 11px;font-size:13.5px}
 }
 label.f{display:grid;gap:5px;min-width:0}
 label.f>span{font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3)}
@@ -406,10 +418,10 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
           <div class="row r-exp2">
             <label class="f"><span>Datum</span><input id="eDate" type="date"></label>
             <label class="f" id="ePersonWrap" hidden><span>Wer hat gezahlt</span><select id="ePerson"></select></label>
-            <label class="f end"><button class="btn" type="submit" id="eSubmit">Eintragen</button></label>
           </div>
-          <div class="actions" id="eEditActions" hidden>
-            <button class="btn ghost sm" type="button" id="eCancel">Bearbeiten abbrechen</button>
+          <div class="actions">
+            <button class="btn" type="submit" id="eSubmit">Eintragen</button>
+            <button class="btn ghost" type="button" id="eCancel" hidden>Abbrechen</button>
           </div>
         </form>
       </div>
@@ -429,7 +441,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 
   <section class="panel" id="p-fixed">
     <div class="card">
-      <div class="card-h"><h2 id="fixFormTitle">Feste Ausgabe (monatlich)</h2><span class="eyebrow" id="fixSum"></span></div>
+      <div class="card-h"><h2 id="fixFormTitle">Neue feste Ausgabe</h2><span class="eyebrow" id="fixSum"></span></div>
       <div class="card-b">
         <form class="form" id="fixForm" autocomplete="off">
           <div class="row r-fix">
@@ -437,9 +449,8 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <label class="f"><span>Betrag €</span><input id="xAmount" inputmode="decimal" placeholder="0,00" required></label>
             <label class="f"><span>Kategorie</span><select id="xCat"></select></label>
             <label class="f"><span>Fällig am</span><input id="xDay" type="number" min="1" max="31" placeholder="1"></label>
-            <label class="f end"><button class="btn" type="submit" id="xSubmit">Hinzufügen</button></label>
           </div>
-          <div class="row r-2">
+          <div class="row r-2" id="xRhythmRow">
             <label class="f"><span>Rhythmus</span><select id="xEvery">
               <option value="1">Jeden Monat</option>
               <option value="3">Vierteljährlich (alle 3 Monate)</option>
@@ -452,7 +463,10 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <label class="f"><span>Gilt ab (optional)</span><input id="xFrom" type="month"></label>
             <label class="f"><span>Gilt bis (optional)</span><input id="xTo" type="month"></label>
           </div>
-          <div class="actions" id="xEditActions" hidden><button class="btn ghost sm" type="button" id="xCancel">Abbrechen</button></div>
+          <div class="actions">
+            <button class="btn" type="submit" id="xSubmit">Hinzufügen</button>
+            <button class="btn ghost" type="button" id="xCancel" hidden>Abbrechen</button>
+          </div>
         </form>
         <div class="list" id="fixList" style="margin-top:16px"></div>
       </div>
@@ -461,16 +475,15 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 
   <section class="panel" id="p-income">
     <div class="card">
-      <div class="card-h"><h2 id="incFormTitle">Einnahme (monatlich)</h2><span class="eyebrow" id="incSum"></span></div>
+      <div class="card-h"><h2 id="incFormTitle">Neue Einnahme</h2><span class="eyebrow" id="incSum"></span></div>
       <div class="card-b">
         <form class="form" id="incForm" autocomplete="off">
           <div class="row r-inc">
             <label class="f"><span>Bezeichnung</span><input id="iName" placeholder="z. B. Gehalt" required></label>
             <label class="f"><span>Betrag €</span><input id="iAmount" inputmode="decimal" placeholder="0,00" required></label>
-            <label class="f"><span>Von wem</span><select id="iPerson"></select></label>
-            <label class="f end"><button class="btn" type="submit" id="iSubmit">Hinzufügen</button></label>
+            <label class="f" id="iPersonWrap" hidden><span>Wer bekommt es</span><select id="iPerson"></select></label>
           </div>
-          <div class="row r-2">
+          <div class="row r-2" id="iRhythmRow">
             <label class="f"><span>Rhythmus</span><select id="iEvery">
               <option value="1">Jeden Monat</option>
               <option value="3">Vierteljährlich (alle 3 Monate)</option>
@@ -483,7 +496,10 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <label class="f"><span>Gilt ab (optional)</span><input id="iFrom" type="month"></label>
             <label class="f"><span>Gilt bis (optional)</span><input id="iTo" type="month"></label>
           </div>
-          <div class="actions" id="iEditActions" hidden><button class="btn ghost sm" type="button" id="iCancel">Abbrechen</button></div>
+          <div class="actions">
+            <button class="btn" type="submit" id="iSubmit">Hinzufügen</button>
+            <button class="btn ghost" type="button" id="iCancel" hidden>Abbrechen</button>
+          </div>
         </form>
         <div class="list" id="incList" style="margin-top:16px"></div>
       </div>
@@ -564,9 +580,9 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       </div>
 
       <div class="card">
-        <div class="card-h"><h2>Wer bezahlt</h2></div>
+        <div class="card-h"><h2>Namen</h2></div>
         <div class="card-b">
-          <p class="note" style="margin:0 0 12px">Namen eintragen, wenn ihr sehen wollt, wer was bezahlt hat. Ohne Namen bleibt das Feld beim Eintragen ausgeblendet.</p>
+          <p class="note" style="margin:0 0 12px">Tragt eure Namen ein, wenn ihr sehen wollt, wer eine Ausgabe bezahlt hat und wessen Gehalt welche Einnahme ist. Solange hier nichts steht, bleiben diese Felder beim Eintragen ausgeblendet — ihr müsst sie also nicht benutzen.</p>
           <div id="peopleList"></div>
           <form class="form" id="personForm" style="margin-top:12px" autocomplete="off">
             <div class="row r-2">
@@ -614,7 +630,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.1.03";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
@@ -634,7 +650,8 @@ const state = {
   members: [],
   editEntry: null, editIncome: null, editFixed: null,
   newCatColor: 0,
-  online: true
+  online: true,
+  rhythmReady: true   // wird beim Laden geprüft: kennt die Datenbank die Rhythmus-Spalten schon?
 };
 
 let sb = null, user = null, channel = null;
@@ -764,6 +781,13 @@ async function loadPlan(){
   if (items.error) throw items.error;
   state.household = hh.data;
   state.plan = rowsToPlan(hh.data, cats.data, items.data);
+
+  // Wenn es Posten gibt, verrät die erste Zeile, ob die Rhythmus-Spalten
+  // existieren. Ohne Posten lassen wir es beim Optimismus — spätestens beim
+  // Speichern fällt es auf und wird dort abgefangen.
+  const ersteZeile = (items.data || [])[0];
+  if (ersteZeile) state.rhythmReady = ("interval_months" in ersteZeile);
+  updateRhythmUi();
   // Fremde E-Mail-Adressen sind bewusst nicht abfragbar — auth.users ist nicht
   // freigegeben. Wir zeigen daher die eigene Adresse und die reine Anzahl.
   if (!mem.error) state.members = mem.data || [];
@@ -835,12 +859,53 @@ async function removeExpense(id){
   if (ok){ delete state.entries[id]; saveCache(); render(); }
   return ok;
 }
+// Die Rhythmus-Spalten kamen später dazu. Solange das SQL-Update in der
+// Datenbank fehlt, darf das nicht das ganze Speichern blockieren: Wer nur einen
+// normalen monatlichen Posten anlegt, kommt auch ohne sie aus. Fehlen sie,
+// merken wir uns das, blenden die Rhythmus-Auswahl aus und speichern erneut —
+// ohne Fehlermeldung für etwas, das der Nutzer gar nicht benutzt hat.
+function fehltRhythmusSpalte(e){
+  const m = String((e && e.message) || e || "");
+  return /schema cache|PGRST204/i.test(m) && /interval_months|anchor_month/i.test(m);
+}
 async function savePlanItem(kind, id, fields){
   const row = Object.assign({ household_id: state.household.id, kind: kind }, fields);
-  const ok = await guard(() => id ? sb.from("plan_items").update(row).eq("id", id)
-                                  : sb.from("plan_items").insert(row));
-  if (ok) await reloadPlanAndRender();
-  return ok;
+  if (!state.rhythmReady){ delete row.interval_months; delete row.anchor_month; }
+
+  const schreibe = (r) => id ? sb.from("plan_items").update(r).eq("id", id)
+                             : sb.from("plan_items").insert(r);
+  try{
+    const res = await schreibe(row);
+    if (res && res.error) throw res.error;
+  }catch(e){
+    const nurMonatlich = (Number(row.interval_months) || 1) <= 1;
+    if (fehltRhythmusSpalte(e) && nurMonatlich){
+      state.rhythmReady = false;
+      updateRhythmUi();
+      delete row.interval_months; delete row.anchor_month;
+      try{
+        const res2 = await schreibe(row);
+        if (res2 && res2.error) throw res2.error;
+      }catch(e2){
+        setConn(false, "nicht gespeichert"); toast(errText(e2)); return false;
+      }
+    } else {
+      if (fehltRhythmusSpalte(e)){ state.rhythmReady = false; updateRhythmUi(); }
+      setConn(false, "nicht gespeichert"); toast(errText(e)); return false;
+    }
+  }
+  setConn(true, "geteilt & synchron");
+  await reloadPlanAndRender();
+  return true;
+}
+// Blendet die Rhythmus-Auswahl aus, wenn die Datenbank sie noch nicht kann.
+function updateRhythmUi(){
+  const aus = !state.rhythmReady;
+  ["#iRhythmRow","#xRhythmRow"].forEach(sel => { const el = $(sel); if (el) el.hidden = aus; });
+  if (aus){
+    $("#iEvery").value = "1"; $("#xEvery").value = "1";
+    $("#iMonthWrap").hidden = true; $("#xMonthWrap").hidden = true;
+  }
 }
 async function removePlanItem(id){
   const ok = await guard(() => sb.from("plan_items").delete().eq("id", id));
@@ -1060,13 +1125,13 @@ function renderDaily(){
 }
 
 function renderIncome(){
-  $("#incSum").textContent = eur(incomeFor(state.ym)) + " in " + ymLabel(state.ym);
+  $("#incSum").textContent = "Summe " + eur(incomeFor(state.ym));
   const inc = Object.entries(state.plan.income).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
   $("#incList").innerHTML = inc.length ? inc.map(([id,i]) => planRow(id, i, "income")).join("")
     : '<p class="empty">Noch keine Einnahme hinterlegt.<br>Gehalt, Kindergeld, Nebenjob — alles, was monatlich reinkommt.</p>';
 }
 function renderFixed(){
-  $("#fixSum").textContent = eur(fixedFor(state.ym)) + " in " + ymLabel(state.ym);
+  $("#fixSum").textContent = "Summe " + eur(fixedFor(state.ym));
   const fx = Object.entries(state.plan.fixed).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
   $("#fixList").innerHTML = fx.length ? fx.map(([id,f]) => planRow(id, f, "fixed")).join("")
     : '<p class="empty">Noch keine feste Ausgabe hinterlegt.<br>Miete, Strom, Handy, Versicherungen, Abos.</p>';
@@ -1185,16 +1250,28 @@ function renderSettings(){
 function fillCatSelects(){
   const opts = state.plan.categories.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
   const addOpt = '<option value="__new__">+ Neue Kategorie…</option>';
+  const ersteKategorie = (state.plan.categories[0] || {}).id || "";
   [["#eCat","",true],["#xCat","",true],["#fCat",'<option value="">Alle Kategorien</option>',false]].forEach(([sel,lead,withAdd]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
     el.innerHTML = lead + opts + (withAdd ? addOpt : "");
-    if (keep && Array.from(el.options).some(o=>o.value===keep)) el.value = keep;
+    // "__new__" ist ein Befehl, keine Kategorie. Beim ersten Rendern sind die
+    // Kategorien noch nicht geladen — dann wäre es der einzige und damit
+    // ausgewählte Eintrag und würde beim Nachladen als Auswahl überleben.
+    if (keep && keep !== "__new__" && Array.from(el.options).some(o => o.value === keep)) el.value = keep;
+    else if (withAdd && el.value === "__new__" && ersteKategorie) el.value = ersteKategorie;
   });
+}
+// Zweite Sicherung direkt vor dem Speichern: der Befehlswert darf die Datenbank
+// nie erreichen, dort ist die Spalte eine UUID.
+function catValue(sel){
+  const v = $(sel).value;
+  return (v && v !== "__new__") ? v : null;
 }
 function fillPersonSelects(){
   const ppl = state.plan.people;
   $("#ePersonWrap").hidden = ppl.length === 0;
+  $("#iPersonWrap").hidden = ppl.length === 0;
   [["#ePerson",'<option value="">—</option>'],["#iPerson",'<option value="">—</option>']].forEach(([sel,lead]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
@@ -1275,14 +1352,14 @@ function resetExpForm(){
   $("#eDate").value = (state.ym === ymOf(new Date())) ? todayISO() : state.ym + "-01";
   $("#expFormTitle").textContent = "Neue Ausgabe";
   $("#eSubmit").textContent = "Eintragen";
-  $("#eEditActions").hidden = true;
+  $("#eCancel").hidden = true;
 }
 $("#expForm").addEventListener("submit", async e => {
   e.preventDefault();
   const a = parseAmount($("#eAmount").value);
   if (!isFinite(a) || a === 0){ toast("Bitte einen Betrag eingeben, z. B. 24,90"); $("#eAmount").focus(); return; }
   const date = $("#eDate").value || todayISO();
-  const entry = { d: date, a: Math.abs(a), c: $("#eCat").value || (state.plan.categories[0]||{}).id || null,
+  const entry = { d: date, a: Math.abs(a), c: catValue("#eCat") || (state.plan.categories[0]||{}).id || null,
                   n: $("#eNote").value.trim(), p: $("#ePerson").value || "" };
   const id = state.editEntry;
   const wasEdit = !!id;
@@ -1309,7 +1386,7 @@ $("#expList").addEventListener("click", async e => {
     $("#eCat").value = en.c; $("#eDate").value = en.d; $("#ePerson").value = en.p || "";
     $("#expFormTitle").textContent = "Eintrag bearbeiten";
     $("#eSubmit").textContent = "Speichern";
-    $("#eEditActions").hidden = false;
+    $("#eCancel").hidden = false;
     window.scrollTo({top:0, behavior:"smooth"});
     render(); $("#eAmount").focus();
   }
@@ -1336,9 +1413,9 @@ function resetIncForm(){
   state.editIncome = null;
   $("#incForm").reset();
   $("#iEvery").value = "1"; $("#iMonthWrap").hidden = true;
-  $("#incFormTitle").textContent = "Einnahme (monatlich)";
+  $("#incFormTitle").textContent = "Neue Einnahme";
   $("#iSubmit").textContent = "Hinzufügen";
-  $("#iEditActions").hidden = true;
+  $("#iCancel").hidden = true;
 }
 $("#incForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -1360,9 +1437,9 @@ function resetFixForm(){
   state.editFixed = null;
   $("#fixForm").reset();
   $("#xEvery").value = "1"; $("#xMonthWrap").hidden = true;
-  $("#fixFormTitle").textContent = "Feste Ausgabe (monatlich)";
+  $("#fixFormTitle").textContent = "Neue feste Ausgabe";
   $("#xSubmit").textContent = "Hinzufügen";
-  $("#xEditActions").hidden = true;
+  $("#xCancel").hidden = true;
 }
 $("#fixForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -1372,7 +1449,7 @@ $("#fixForm").addEventListener("submit", async e => {
   const id = state.editFixed, wasEdit = !!id;
   const every = parseInt($("#xEvery").value, 10) || 1;
   const fields = { name: $("#xName").value.trim() || "Feste Ausgabe", amount: Math.abs(amount),
-                   category_id: $("#xCat").value || null, person: null,
+                   category_id: catValue("#xCat"), person: null,
                    due_day: (day >= 1 && day <= 31) ? day : null,
                    interval_months: every, anchor_month: every > 1 ? (parseInt($("#xMonth").value,10) || 1) : 1,
                    valid_from: $("#xFrom").value || null, valid_to: $("#xTo").value || null };
@@ -1399,7 +1476,7 @@ $("#app").addEventListener("click", async e => {
       $("#iPerson").value = it.person || ""; $("#iFrom").value = it.from || ""; $("#iTo").value = it.to || "";
       $("#iEvery").value = String(it.every || 1); $("#iMonthWrap").hidden = (it.every || 1) <= 1;
       $("#iMonth").value = String(it.anchorMonth || 1);
-      $("#incFormTitle").textContent = "Einnahme bearbeiten"; $("#iSubmit").textContent = "Speichern"; $("#iEditActions").hidden = false;
+      $("#incFormTitle").textContent = "Einnahme bearbeiten"; $("#iSubmit").textContent = "Speichern"; $("#iCancel").hidden = false;
       $("#iName").focus();
     } else {
       const it = state.plan.fixed[id]; if (!it) return;
@@ -1408,7 +1485,7 @@ $("#app").addEventListener("click", async e => {
       $("#xDay").value = it.day || ""; $("#xFrom").value = it.from || ""; $("#xTo").value = it.to || "";
       $("#xEvery").value = String(it.every || 1); $("#xMonthWrap").hidden = (it.every || 1) <= 1;
       $("#xMonth").value = String(it.anchorMonth || 1);
-      $("#fixFormTitle").textContent = "Feste Ausgabe bearbeiten"; $("#xSubmit").textContent = "Speichern"; $("#xEditActions").hidden = false;
+      $("#fixFormTitle").textContent = "Feste Ausgabe bearbeiten"; $("#xSubmit").textContent = "Speichern"; $("#xCancel").hidden = false;
       $("#xName").focus();
     }
     if (kind === "income") renderIncome(); else renderFixed();

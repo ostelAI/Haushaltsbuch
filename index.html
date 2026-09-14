@@ -29,6 +29,9 @@
   --c5:#e87ba4; --c6:#008300; --c7:#4a3aa7; --c8:#e34948;
   --c9:#0097bf; --c10:#d87500; --c11:#009393; --c12:#465ec4;
   --c13:#d04a6d; --c14:#904eba; --c15:#a09600; --c16:#cf71bd;
+  --c17:#ff2d9b; --c18:#9d00ff; --c19:#00d5e8; --c20:#2be800;
+  --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#3a4149;
+  --chip-ring:rgba(0,0,0,.24);
   --shadow:0 1px 2px rgba(19,24,22,.06), 0 8px 24px -16px rgba(19,24,22,.28);
   --r:10px;
 }
@@ -42,6 +45,9 @@
     --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
     --c9:#00a4d0; --c10:#dc7700; --c11:#0daaaa; --c12:#6c8bff;
     --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
+    --c17:#ff3da6; --c18:#b44bff; --c19:#22e5f5; --c20:#4bff3c;
+    --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#5c6570;
+    --chip-ring:rgba(255,255,255,.30);
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
   }
 }
@@ -54,6 +60,9 @@
   --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
   --c9:#00a4d0; --c10:#dc7700; --c11:#0daaaa; --c12:#6c8bff;
   --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
+  --c17:#ff3da6; --c18:#b44bff; --c19:#22e5f5; --c20:#4bff3c;
+  --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#5c6570;
+  --chip-ring:rgba(255,255,255,.30);
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
 }
 
@@ -151,10 +160,10 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-row:hover{background:var(--surface-2)}
 .brk-name{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
 .brk-name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip{width:10px;height:10px;border-radius:3px;flex:none}
+.chip{width:10px;height:10px;border-radius:3px;flex:none;box-shadow:0 0 0 1px var(--chip-ring)}
 .brk-val{font-size:14px;font-weight:600}
 .brk-bar{grid-column:1/-1;height:9px;border-radius:5px;background:var(--surface-2);display:flex;gap:2px;overflow:hidden}
-.brk-bar i{display:block;height:100%}
+.brk-bar i{display:block;height:100%;box-shadow:inset 0 0 0 1px var(--chip-ring)}
 .brk-bar i:first-child{border-radius:5px 2px 2px 5px}
 .brk-bar i:last-child{border-radius:2px 5px 5px 2px}
 .hatch{background-image:repeating-linear-gradient(135deg,currentColor 0 3px,transparent 3px 7px);background-color:color-mix(in srgb,currentColor 20%,transparent)}
@@ -218,7 +227,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .dayhead .d{font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .dayhead .s{font-size:12.5px;color:var(--ink-3)}
 .empty{text-align:center;color:var(--ink-3);font-size:14px;padding:28px 10px;line-height:1.6}
-.dotchip{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:0}
+.dotchip{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:0;box-shadow:0 0 0 1px var(--chip-ring)}
 
 .ytable{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 .ytable th{text-align:right;font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:400;padding:0 0 9px}
@@ -243,13 +252,14 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .catrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
 .catrow>b{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .catrow.offen{background:var(--surface-2);border-radius:8px;padding:9px 8px;margin:0 -8px}
-.chipbtn{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-strong);cursor:pointer;padding:0;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.chipbtn{width:22px;height:22px;border-radius:6px;border:0;cursor:pointer;padding:0;
+  box-shadow:inset 0 0 0 1px var(--chip-ring), 0 0 0 1px var(--chip-ring)}
 .chipbtn[aria-expanded="true"]{outline:2px solid var(--accent);outline-offset:2px}
 .catrow .swatches{grid-column:1/-1;margin-top:4px}
 .catrow:first-child{border-top:0}
 .swatches{display:flex;gap:5px;flex-wrap:wrap}
-.sw{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.sw{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;padding:0;
+  box-shadow:inset 0 0 0 1px var(--chip-ring)}
 .sw[aria-pressed="true"]{border-color:var(--ink)}
 .tagline{font-size:13px;color:var(--ink-3);margin-top:2px}
 .code{
@@ -644,11 +654,12 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.2.01";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
-                  "--c9","--c10","--c11","--c12","--c13","--c14","--c15","--c16"];
+                  "--c9","--c10","--c11","--c12","--c13","--c14","--c15","--c16",
+                  "--c17","--c18","--c19","--c20","--c21","--c22","--c23","--c24"];
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const LS_HH = "haushaltsbuch.household";

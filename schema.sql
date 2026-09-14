@@ -289,3 +289,15 @@ alter table public.plan_items add column if not exists interval_months smallint 
   check (interval_months in (1,3,6,12));
 alter table public.plan_items add column if not exists anchor_month smallint not null default 1
   check (anchor_month between 1 and 12);
+
+-- ------------------------------- Nachtrag: Budgets & Abrechnungszeitraum --
+-- budget: optionaler Monatsbetrag je Kategorie. 0 bedeutet "kein Budget
+-- gesetzt" und ist der Standard, ändert also für bestehende Kategorien nichts.
+alter table public.categories add column if not exists budget numeric(12,2) not null default 0;
+
+-- period_start_day: an welchem Tag der Abrechnungsmonat beginnt. 1 ist der
+-- Standard und entspricht dem Kalendermonat. Wer am 28. Lohn bekommt, setzt
+-- 28 — dann läuft der Monat vom 28. des Vormonats bis zum 27.
+-- Begrenzt auf 28, damit der Start in jedem Monat existiert (Februar).
+alter table public.households add column if not exists period_start_day smallint not null default 1
+  check (period_start_day between 1 and 28);

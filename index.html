@@ -268,13 +268,26 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .note{font-size:13px;color:var(--ink-2);line-height:1.6;max-width:62ch}
 .split{display:grid;gap:14px}
 @media(min-width:860px){.split.two{grid-template-columns:1fr 1fr;align-items:start}}
-.catrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.catrow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
 .catrow>b{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .catrow.offen{background:var(--surface-2);border-radius:8px;padding:9px 8px;margin:0 -8px}
 .chipbtn{width:22px;height:22px;border-radius:6px;border:0;cursor:pointer;padding:0;
   box-shadow:inset 0 0 0 1px var(--chip-ring), 0 0 0 1px var(--chip-ring)}
 .chipbtn[aria-expanded="true"]{outline:2px solid var(--accent);outline-offset:2px}
-.catrow .swatches{grid-column:1/-1;margin-top:4px}
+.catrow .swatches{grid-column:1/-1}
+.catpanel{grid-column:1/-1;margin-top:6px;display:grid;gap:10px}
+.catbudgetform{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.catbudget{font-weight:400;font-size:12px;color:var(--ink-3);margin-left:6px}
+.catsort{display:flex;gap:0}
+.icon-btn.move{font-size:10px;padding:5px 5px}
+.icon-btn.move:hover{color:var(--accent)}
+.icon-btn:disabled{opacity:.3;cursor:default}
+.icon-btn:disabled:hover{background:none;color:var(--ink-3)}
+.bdg{white-space:nowrap}
+.bdg.ok{color:var(--pos)}
+.bdg.over{color:var(--neg);font-weight:600}
+.zeitraum{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:400;color:var(--ink-3);letter-spacing:0;margin-top:-2px}
+#themeSwitch .btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .catrow:first-child{border-top:0}
 .swatches{display:flex;gap:5px;flex-wrap:wrap}
 .sw{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;padding:0;
@@ -652,6 +665,34 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
         </div>
       </div>
 
+      <div class="card" id="periodCard">
+        <div class="card-h"><h2>Abrechnungszeitraum</h2></div>
+        <div class="card-b">
+          <p class="note" style="margin:0 0 12px">Wenn euer Lohn nicht am Monatsersten kommt, passt der Kalendermonat nicht zu eurem Geldfluss. Tragt hier den Tag ein, an dem euer Monat beginnt — bei Lohn am 28. also die 28. Der Monat läuft dann vom 28. des Vormonats bis zum 27.</p>
+          <form class="form" id="periodForm" autocomplete="off">
+            <div class="row r-2">
+              <label class="f"><span>Monat beginnt am</span><input id="periodDay" type="number" min="1" max="28" placeholder="1"></label>
+              <label class="f end"><button class="btn sm" type="submit">Speichern</button></label>
+            </div>
+          </form>
+          <p class="tagline" id="periodHint" style="margin-top:8px"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Darstellung</h2></div>
+        <div class="card-b">
+          <p class="note" style="margin:0 0 12px">Normalerweise folgt die App der Einstellung deines Geräts. Hier kannst du hell oder dunkel fest vorgeben — die Wahl gilt nur auf diesem Gerät.</p>
+          <div class="actions" id="themeSwitch">
+            <button class="btn ghost sm" type="button" data-theme-set="auto">Wie das Gerät</button>
+            <button class="btn ghost sm" type="button" data-theme-set="light">Immer hell</button>
+            <button class="btn ghost sm" type="button" data-theme-set="dark">Immer dunkel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="split two">
       <div class="card">
         <div class="card-h"><h2>Daten</h2></div>
         <div class="card-b">
@@ -674,7 +715,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.2.02";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -688,7 +729,7 @@ const LS_CACHE = "haushaltsbuch.cache";
 const state = {
   household: null,                                  // {id, name, goal, people}
   plan: { categories: [], people: [], income: {}, fixed: {}, goal: 0 },
-  ym: ymOf(new Date()),
+  ym: ymOf(new Date()),   // wird nach dem Laden auf den Abrechnungsmonat gesetzt
   entries: {},
   tab: "overview",
   year: new Date().getFullYear(),
@@ -700,6 +741,8 @@ const state = {
   rhythmReady: true   // wird beim Laden geprüft: kennt die Datenbank die Rhythmus-Spalten schon?
   , catColorOpen: null  // Kategorie, deren Farbpalette gerade offen ist
   , brkOpen: null       // Kategorie, deren Einzelposten im Überblick offen sind
+  , budgetReady: true   // kennt die Datenbank die Budget-Spalte schon?
+  , periodReady: true   // kennt die Datenbank den Abrechnungszeitraum schon?
 };
 
 let sb = null, user = null, channel = null;
@@ -713,8 +756,47 @@ function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.get
 function ymShift(ym, n){ const [y,m]=ym.split("-").map(Number); return ymOf(new Date(y, m-1+n, 1)); }
 function ymLabel(ym){ const [y,m]=ym.split("-").map(Number); return MONTHS[m-1] + " " + y; }
 function daysInMonth(ym){ const [y,m]=ym.split("-").map(Number); return new Date(y,m,0).getDate(); }
-function monthStart(ym){ return ym + "-01"; }
-function monthEnd(ym){ return ym + "-" + String(daysInMonth(ym)).padStart(2,"0"); }
+function iso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+// ---- Abrechnungszeitraum ----------------------------------------------------
+// Standard ist der Kalendermonat (Starttag 1). Bei einem anderen Starttag läuft
+// der Monat "September" vom Starttag im August bis zum Vortag im September —
+// also so, wie das Geld tatsächlich fließt, wenn der Lohn Ende des Vormonats kommt.
+function startTag(){
+  const d = Number(state.household && state.household.period_start_day) || 1;
+  return (d >= 1 && d <= 28) ? d : 1;
+}
+function monthStart(ym){
+  const t = startTag();
+  if (t === 1) return ym + "-01";
+  const [y,m] = ym.split("-").map(Number);
+  return iso(new Date(y, m - 2, t));
+}
+function monthEnd(ym){
+  const t = startTag();
+  if (t === 1) return ym + "-" + String(daysInMonth(ym)).padStart(2,"0");
+  const [y,m] = ym.split("-").map(Number);
+  return iso(new Date(y, m - 1, t - 1));
+}
+// Zu welchem Abrechnungsmonat gehört ein bestimmtes Datum?
+function ymOfDate(datum){
+  const t = startTag();
+  if (t === 1) return String(datum).slice(0,7);
+  const d = new Date(String(datum) + "T00:00:00");
+  if (isNaN(d)) return String(datum).slice(0,7);
+  return d.getDate() >= t ? ymOf(new Date(d.getFullYear(), d.getMonth() + 1, 1)) : ymOf(d);
+}
+function heuteYm(){ return ymOfDate(todayISO()); }
+function tageImZeitraum(ym){
+  const a = new Date(monthStart(ym) + "T00:00:00"), b = new Date(monthEnd(ym) + "T00:00:00");
+  return Math.round((b - a) / 86400000) + 1;
+}
+function zeitraumText(ym){
+  if (startTag() === 1) return "";
+  const f = t => { const d = new Date(t + "T00:00:00");
+    return String(d.getDate()).padStart(2,"0") + "." + String(d.getMonth()+1).padStart(2,"0") + "."; };
+  return f(monthStart(ym)) + "–" + f(monthEnd(ym));
+}
 
 const nf  = new Intl.NumberFormat("de-DE",{minimumFractionDigits:2, maximumFractionDigits:2});
 const nf0 = new Intl.NumberFormat("de-DE",{minimumFractionDigits:0, maximumFractionDigits:0});
@@ -798,7 +880,8 @@ function rowsToPlan(hh, cats, items){
   const plan = { categories: [], people: [], income: {}, fixed: {}, goal: 0 };
   plan.goal = Number(hh.goal) || 0;
   plan.people = Array.isArray(hh.people) ? hh.people.slice() : [];
-  plan.categories = (cats||[]).map(c => ({ id: c.id, name: c.name, ci: Number(c.color_index)||0 }));
+  plan.categories = (cats||[]).map((c,i) => ({ id: c.id, name: c.name, ci: Number(c.color_index)||0,
+                                                budget: Number(c.budget)||0, pos: Number(c.position) }));
   (items||[]).forEach(it => {
     const base = { name: it.name, amount: Number(it.amount)||0, from: it.valid_from || "", to: it.valid_to || "",
                     every: Number(it.interval_months)||1, anchorMonth: Number(it.anchor_month)||1 };
@@ -836,6 +919,14 @@ async function loadPlan(){
   const ersteZeile = (items.data || [])[0];
   if (ersteZeile) state.rhythmReady = ("interval_months" in ersteZeile);
   updateRhythmUi();
+
+  // Verfügt die Datenbank schon über die neueren Spalten?
+  const ersteKategorie = (cats.data || [])[0];
+  if (ersteKategorie) state.budgetReady = ("budget" in ersteKategorie);
+  // Nicht auf state.household schreiben: das Objekt kommt aus der Antwort und
+  // würde beim nächsten Laden vortäuschen, die Spalte sei vorhanden.
+  // startTag() fällt bei fehlendem Wert ohnehin auf 1 zurück.
+  state.periodReady = ("period_start_day" in hh.data);
   // Fremde E-Mail-Adressen sind bewusst nicht abfragbar — auth.users ist nicht
   // freigegeben. Wir zeigen daher die eigene Adresse und die reine Anzahl.
   if (!mem.error) state.members = mem.data || [];
@@ -852,11 +943,11 @@ async function loadMonth(ym){
 async function loadYear(year){
   const r = await sb.from("expenses").select("*")
     .eq("household_id", state.household.id)
-    .gte("spent_on", year + "-01-01").lte("spent_on", year + "-12-31");
+    .gte("spent_on", monthStart(year + "-01")).lte("spent_on", monthEnd(year + "-12"));
   if (r.error) throw r.error;
   const acc = {};
   (r.data||[]).forEach(row => {
-    const ym = String(row.spent_on).slice(0,7);
+    const ym = ymOfDate(row.spent_on);
     (acc[ym] = acc[ym] || {})[row.id] = { d: row.spent_on, a: Number(row.amount)||0, c: row.category_id || "",
                                           n: row.note || "", p: row.person || "", t: Date.parse(row.created_at)||0 };
   });
@@ -1020,7 +1111,7 @@ function monthStats(ym, entries){
   return { income, fixed, variable, goal, rest: income - fixed - variable - goal, saldo: income - fixed - variable };
 }
 function daysLeftIn(ym){
-  const now = new Date(), cur = ymOf(now), total = daysInMonth(ym);
+  const now = new Date(), cur = heuteYm(), total = tageImZeitraum(ym);
   if (ym > cur) return total;
   if (ym < cur) return 0;
   return total - now.getDate() + 1;
@@ -1030,8 +1121,10 @@ function daysLeftIn(ym){
 function render(){
   if (!state.household) return;
   $("#brandName").textContent = state.household.name || "Haushaltsbuch";
-  $("#monthLabel").textContent = ymLabel(state.ym);
-  $("#todayBtn").hidden = (state.ym === ymOf(new Date()));
+  const zt = zeitraumText(state.ym);
+  $("#monthLabel").innerHTML = esc(ymLabel(state.ym)) +
+    (zt ? '<span class="zeitraum">' + esc(zt) + "</span>" : "");
+  $("#todayBtn").hidden = (state.ym === heuteYm());
   if (state.tab === "overview") renderOverview();
   if (state.tab === "daily")    renderDaily();
   if (state.tab === "fixed")    renderFixed();
@@ -1071,7 +1164,7 @@ function renderOverview(){
   $("#heroBar").innerHTML = segs.map(x => '<i class="' + x.c + '" style="width:' + pct(x.v).toFixed(2) + '%" title="' + x.n + ": " + eur(x.v) + '"></i>').join("");
   $("#heroKey").innerHTML = segs.map(x => '<span><i class="' + x.c + '"></i>' + x.n + " " + eur(x.v) + "</span>").join("");
 
-  const perDayPlan = s.income > 0 ? (s.income - s.fixed - s.goal) / daysInMonth(state.ym) : 0;
+  const perDayPlan = s.income > 0 ? (s.income - s.fixed - s.goal) / tageImZeitraum(state.ym) : 0;
   $("#kpis").innerHTML = [
     kpi("k-in",  "Einnahmen",           eur(s.income),   Object.keys(state.plan.income).length + " Posten"),
     kpi("k-fix", "Feste Kosten",        eur(s.fixed),    Object.keys(state.plan.fixed).length + " Posten"),
@@ -1107,9 +1200,17 @@ function renderBreakdown(){
     if (r.var > 0) parts.push('<i style="width:' + wv.toFixed(2) + '%;background:' + col + '"></i>');
     if (r.fix > 0) parts.push('<i class="hatch" style="width:' + wf.toFixed(2) + '%;color:' + col + '"></i>');
     const share = Math.round(total ? (r.total / total) * 100 : 0) + " % aller Ausgaben";
-    const sub = (r.fix > 0 && r.var > 0)
+    let sub = (r.fix > 0 && r.var > 0)
       ? share + " · variabel " + eur(r.var) + " · fix " + eur(r.fix)
       : share + (r.fix > 0 ? " · komplett feste Kosten" : " · komplett variabel");
+    const budget = state.budgetReady ? Number(r.cat.budget) || 0 : 0;
+    let budgetHinweis = "";
+    if (budget > 0){
+      const rest = budget - r.total;
+      budgetHinweis = rest >= 0
+        ? '<span class="bdg ok">noch ' + esc(eur(rest)) + " von " + esc(eur(budget)) + "</span>"
+        : '<span class="bdg over">' + esc(eur(-rest)) + " über Budget (" + esc(eur(budget)) + ")</span>";
+    }
     const offen = state.brkOpen === r.cat.id;
     return '<div class="brk-row' + (offen ? " offen" : "") + '" role="button" tabindex="0" data-brk="' + esc(r.cat.id) + '" ' +
       'aria-expanded="' + offen + '" aria-label="' + esc(r.cat.name) + ' aufklappen">' +
@@ -1117,7 +1218,7 @@ function renderBreakdown(){
         '<span class="brk-pfeil">' + (offen ? "&#9650;" : "&#9660;") + "</span></div>" +
       '<div class="brk-val num">' + eur(r.total) + "</div>" +
       '<div class="brk-bar">' + parts.join("") + "</div>" +
-      '<div class="brk-sub">' + esc(sub) + "</div>" +
+      '<div class="brk-sub">' + esc(sub) + (budgetHinweis ? " · " + budgetHinweis : "") + "</div>" +
       (offen ? '<div class="brk-detail">' + kategorieDetail(r.cat.id) + "</div>" : "") +
       "</div>";
   }).join("");
@@ -1262,7 +1363,7 @@ async function renderYear(){
   try{ await loadYear(state.year); }catch(e){ toast(errText(e)); }
   state.years[state.ym] = state.entries;
 
-  const cur = ymOf(new Date());
+  const cur = heuteYm();
   let first = null;
   Object.keys(state.years).forEach(ym => {
     if (Object.keys(state.years[ym] || {}).length && (!first || ym < first)) first = ym;
@@ -1326,15 +1427,28 @@ function renderSettings(){
   const cats = state.plan.categories;
   // 16 Farbfelder mal jede Kategorie wären eine Wand aus Punkten. Die Palette
   // klappt deshalb nur für die Kategorie auf, die gerade geändert wird.
-  $("#catList").innerHTML = cats.map(c => {
+  $("#catList").innerHTML = cats.map((c, i) => {
     const offen = state.catColorOpen === c.id;
+    const budgetText = (state.budgetReady && Number(c.budget) > 0) ? eur(c.budget) : "";
     return '<div class="catrow' + (offen ? " offen" : "") + '">' +
       '<button class="chipbtn" type="button" data-catpick="' + c.id + '" aria-expanded="' + offen + '" ' +
-        'aria-label="Farbe von ' + esc(c.name) + ' ändern" style="background:' + catColor(c) + '"></button>' +
-      "<b>" + esc(c.name) + "</b>" +
+        'aria-label="Farbe und Budget von ' + esc(c.name) + ' ändern" style="background:' + catColor(c) + '"></button>' +
+      "<b>" + esc(c.name) + (budgetText ? ' <span class="catbudget num">' + esc(budgetText) + "</span>" : "") + "</b>" +
+      '<span class="catsort">' +
+        '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':-1" aria-label="' + esc(c.name) + ' nach oben"' + (i===0?" disabled":"") + ">&#9650;</button>" +
+        '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':1" aria-label="' + esc(c.name) + ' nach unten"' + (i===cats.length-1?" disabled":"") + ">&#9660;</button>" +
+      "</span>" +
       '<button class="icon-btn" type="button" data-catdel="' + c.id + '" aria-label="Kategorie löschen"' + (cats.length<=1?" disabled":"") + ">&#10005;</button>" +
-      (offen ? '<div class="swatches">' + CAT_VARS.map((v,ci) =>
-        '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" : "") +
+      (offen ? '<div class="catpanel">' +
+        '<div class="swatches">' + CAT_VARS.map((v,ci) =>
+          '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" +
+        (state.budgetReady
+          ? '<form class="form catbudgetform" data-catbudget="' + c.id + '">' +
+              '<label class="f"><span>Monatsbudget (0 = keins)</span>' +
+              '<input inputmode="decimal" name="betrag" placeholder="0,00" value="' + (Number(c.budget) > 0 ? esc(nf.format(c.budget)) : "") + '"></label>' +
+              '<button class="btn sm" type="submit">Budget speichern</button></form>'
+          : "") +
+      "</div>" : "") +
       "</div>";
   }).join("");
 
@@ -1348,6 +1462,14 @@ function renderSettings(){
     : '<p class="empty" style="padding:14px 0">Noch keine Person eingetragen.</p>';
 
   if (document.activeElement !== $("#gAmount")) $("#gAmount").value = state.plan.goal ? nf.format(state.plan.goal) : "";
+
+  const tag = startTag();
+  if (document.activeElement !== $("#periodDay")) $("#periodDay").value = tag > 1 ? String(tag) : "";
+  $("#periodHint").textContent = state.periodReady
+    ? (tag > 1 ? "Aktuell: " + ymLabel(state.ym) + " läuft vom " + zeitraumText(state.ym).replace("–", " bis ")
+               : "Aktuell: Kalendermonat, 1. bis Monatsende.")
+    : "Dafür fehlt noch das letzte SQL-Update aus schema.sql.";
+  $("#periodForm").querySelector("button").disabled = !state.periodReady;
 }
 
 function fillCatSelects(){
@@ -1445,7 +1567,7 @@ async function goMonth(ym){
 }
 $("#prevM").addEventListener("click", () => goMonth(ymShift(state.ym, -1)));
 $("#nextM").addEventListener("click", () => goMonth(ymShift(state.ym,  1)));
-$("#todayBtn").addEventListener("click", () => goMonth(ymOf(new Date())));
+$("#todayBtn").addEventListener("click", () => goMonth(heuteYm()));
 $("#yPrev").addEventListener("click", () => { state.year--; renderYear(); });
 $("#yNext").addEventListener("click", () => { state.year++; renderYear(); });
 
@@ -1467,7 +1589,7 @@ $("#yNext").addEventListener("click", () => { state.year++; renderYear(); });
 function resetExpForm(){
   state.editEntry = null;
   $("#expForm").reset();
-  $("#eDate").value = (state.ym === ymOf(new Date())) ? todayISO() : state.ym + "-01";
+  $("#eDate").value = (state.ym === heuteYm()) ? todayISO() : monthStart(state.ym);
   $("#expFormTitle").textContent = "Neue Ausgabe";
   $("#eSubmit").textContent = "Eintragen";
   $("#eCancel").hidden = true;
@@ -1481,7 +1603,7 @@ $("#expForm").addEventListener("submit", async e => {
                   n: $("#eNote").value.trim(), p: $("#ePerson").value || "" };
   const id = state.editEntry;
   const wasEdit = !!id;
-  const targetYm = date.slice(0,7);
+  const targetYm = ymOfDate(date);
   resetExpForm();
   if (targetYm !== state.ym){ state.ym = targetYm; }
   const ok = await saveExpense(id, entry);
@@ -1636,11 +1758,61 @@ $("#app").addEventListener("click", async e => {
 });
 
 /* --- Einstellungen --- */
+// ---- Darstellung: hell/dunkel fest vorgeben (nur auf diesem Gerät) ----
+const LS_THEME = "haushaltsbuch.theme";
+function themaSetzen(wahl){
+  if (wahl === "light" || wahl === "dark") document.documentElement.setAttribute("data-theme", wahl);
+  else document.documentElement.removeAttribute("data-theme");
+  try{ localStorage.setItem(LS_THEME, wahl); }catch(e){}
+  $$("#themeSwitch [data-theme-set]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeSet === wahl)));
+}
+(function themaLaden(){
+  let wahl = "auto";
+  try{ wahl = localStorage.getItem(LS_THEME) || "auto"; }catch(e){}
+  themaSetzen(wahl);
+})();
+$("#themeSwitch").addEventListener("click", e => {
+  const b = e.target.closest("[data-theme-set]");
+  if (b) themaSetzen(b.dataset.themeSet);
+});
+
+// ---- Abrechnungszeitraum ----
+$("#periodForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const t = parseInt($("#periodDay").value, 10);
+  const tag = (t >= 1 && t <= 28) ? t : 1;
+  if (!state.periodReady){
+    toast("Dafür fehlt noch das SQL-Update aus schema.sql.");
+    return;
+  }
+  if (await updateHousehold({ period_start_day: tag })){
+    state.ym = heuteYm();
+    await refreshAll();
+    toast(tag === 1 ? "Monat beginnt wieder am 1." : "Monat beginnt am " + tag + ".");
+  }
+});
+
 $("#hhForm").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("#hhRename").value.trim() || "Unser Haushalt";
   if (await updateHousehold({ name: name })) toast("Name gespeichert");
 });
+// Budget einer Kategorie speichern (Formular steckt in der aufgeklappten Zeile)
+$("#catList").addEventListener("submit", async e => {
+  const f = e.target.closest("[data-catbudget]");
+  if (!f) return;
+  e.preventDefault();
+  const id = f.dataset.catbudget;
+  const v = parseAmount(f.elements.betrag.value);
+  const betrag = isFinite(v) ? Math.abs(v) : 0;
+  if (await guard(() => sb.from("categories").update({ budget: betrag }).eq("id", id))){
+    state.catColorOpen = null;
+    await reloadPlanAndRender();
+    toast(betrag > 0 ? "Budget: " + eur(betrag) + " pro Monat" : "Budget entfernt");
+  }
+});
+
 $("#catForm").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("#cName").value.trim(); if (!name) return;
@@ -1669,6 +1841,25 @@ $("#p-settings").addEventListener("click", async e => {
   const cc = e.target.closest("[data-catcolor]"), nc = e.target.closest("[data-newcolor]"),
         cd = e.target.closest("[data-catdel]"),   pn = e.target.closest("[data-pdelname]"),
         cp = e.target.closest("[data-catpick]");
+  const cm = e.target.closest("[data-catmove]");
+  if (cm){
+    const [id, richtung] = cm.dataset.catmove.split(":");
+    const liste = state.plan.categories.slice();
+    const i = liste.findIndex(c => c.id === id);
+    const j = i + Number(richtung);
+    if (i < 0 || j < 0 || j >= liste.length) return;
+    [liste[i], liste[j]] = [liste[j], liste[i]];
+    // Fortlaufend neu durchnummerieren und nur schreiben, was sich wirklich
+    // ändert. Das repariert nebenbei Lücken, die durch Löschungen entstanden sind.
+    let fehler = false;
+    for (let k = 0; k < liste.length; k++){
+      if (liste[k].pos === k) continue;
+      const ok = await guard(() => sb.from("categories").update({ position: k }).eq("id", liste[k].id));
+      if (!ok){ fehler = true; break; }
+    }
+    if (!fehler) await reloadPlanAndRender();
+    return;
+  }
   if (cp){
     // Farbpalette dieser Kategorie auf- oder zuklappen (immer nur eine offen)
     state.catColorOpen = (state.catColorOpen === cp.dataset.catpick) ? null : cp.dataset.catpick;
@@ -1730,7 +1921,7 @@ $("#exportBtn").addEventListener("click", async () => {
     const rows = [["Typ","Rhythmus","Zeitraum","Datum","Bezeichnung","Kategorie","Person","Betrag EUR"]];
     Object.values(state.plan.income).forEach(i => rows.push(["Einnahme", rhythmWord(i.every) || "monatlich", (i.from||"") + (i.to?" bis "+i.to:""), "", i.name, "", i.person||"", nf.format(i.amount)]));
     Object.values(state.plan.fixed).forEach(f => rows.push(["Feste Ausgabe", rhythmWord(f.every) || "monatlich", (f.from||"") + (f.to?" bis "+f.to:""), f.day?("am "+f.day+"."):"", f.name, catById(f.cat).name, "", nf.format(f.amount)]));
-    (r.data||[]).forEach(e => rows.push(["Ausgabe", "", String(e.spent_on).slice(0,7), e.spent_on, e.note||"", catById(e.category_id).name, e.person||"", nf.format(Number(e.amount)||0)]));
+    (r.data||[]).forEach(e => rows.push(["Ausgabe", "", ymOfDate(e.spent_on), e.spent_on, e.note||"", catById(e.category_id).name, e.person||"", nf.format(Number(e.amount)||0)]));
     const csv = "﻿" + rows.map(x => x.map(csvCell).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
     const a = document.createElement("a");
@@ -1857,6 +2048,10 @@ async function startApp(hid){
   showScreen("app");
   loadCache();
   render();
+  try{ await loadPlan(); }catch(e){}
+  // Erst jetzt ist der Abrechnungszeitraum bekannt — der angezeigte Monat
+  // richtet sich danach, nicht nach dem Kalender.
+  state.ym = heuteYm();
   await refreshAll();
   subscribeLive();
   resetExpForm();

@@ -25,7 +25,7 @@ create table if not exists public.categories (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
   name         text not null,
-  color_index  smallint not null default 0,          -- 0–7, Farbslot in der App
+  color_index  smallint not null default 0,          -- 0–15, Farbslot in der App
   position     smallint not null default 0
 );
 

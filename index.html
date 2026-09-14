@@ -27,6 +27,8 @@
   --pos-fill:#0CA30C; --warn-fill:#FAB219; --neg-fill:#D03B3B;
   --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100;
   --c5:#e87ba4; --c6:#008300; --c7:#4a3aa7; --c8:#e34948;
+  --c9:#0097bf; --c10:#d87500; --c11:#009393; --c12:#465ec4;
+  --c13:#d04a6d; --c14:#904eba; --c15:#a09600; --c16:#cf71bd;
   --shadow:0 1px 2px rgba(19,24,22,.06), 0 8px 24px -16px rgba(19,24,22,.28);
   --r:10px;
 }
@@ -38,6 +40,8 @@
     --pos:#4CC38A; --neg:#E66767; --warn:#E0A53A;
     --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
     --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+    --c9:#00a4d0; --c10:#dc7700; --c11:#0daaaa; --c12:#6c8bff;
+    --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
   }
 }
@@ -48,6 +52,8 @@
   --pos:#4CC38A; --neg:#E66767; --warn:#E0A53A;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
   --c5:#d55181; --c6:#008300; --c7:#9085e9; --c8:#e66767;
+  --c9:#00a4d0; --c10:#dc7700; --c11:#0daaaa; --c12:#6c8bff;
+  --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
 }
 
@@ -234,7 +240,13 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .note{font-size:13px;color:var(--ink-2);line-height:1.6;max-width:62ch}
 .split{display:grid;gap:14px}
 @media(min-width:860px){.split.two{grid-template-columns:1fr 1fr;align-items:start}}
-.catrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.catrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.catrow>b{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.catrow.offen{background:var(--surface-2);border-radius:8px;padding:9px 8px;margin:0 -8px}
+.chipbtn{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-strong);cursor:pointer;padding:0;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.chipbtn[aria-expanded="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.catrow .swatches{grid-column:1/-1;margin-top:4px}
 .catrow:first-child{border-top:0}
 .swatches{display:flex;gap:5px;flex-wrap:wrap}
 .sw{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
@@ -632,10 +644,11 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.1.04";
+const APP_VERSION = "1.2.0";
 
 /* ============================ Grundlagen ============================ */
-const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"];
+const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
+                  "--c9","--c10","--c11","--c12","--c13","--c14","--c15","--c16"];
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const LS_HH = "haushaltsbuch.household";
@@ -654,6 +667,7 @@ const state = {
   newCatColor: 0,
   online: true,
   rhythmReady: true   // wird beim Laden geprüft: kennt die Datenbank die Rhythmus-Spalten schon?
+  , catColorOpen: null  // Kategorie, deren Farbpalette gerade offen ist
 };
 
 let sb = null, user = null, channel = null;
@@ -1231,11 +1245,19 @@ function renderSettings(){
       : '<p class="note" style="margin:10px 0 0">Bisher nur du. Mit dem Einladungscode unten holst du eine zweite Person dazu.</p>');
 
   const cats = state.plan.categories;
-  $("#catList").innerHTML = cats.map(c =>
-    '<div class="catrow"><div class="brk-name"><span class="chip" style="background:' + catColor(c) + '"></span><b>' + esc(c.name) + "</b></div>" +
-    '<div class="swatches">' + CAT_VARS.map((v,ci) =>
-      '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" +
-    '<button class="icon-btn" type="button" data-catdel="' + c.id + '" aria-label="Kategorie löschen"' + (cats.length<=1?" disabled":"") + ">&#10005;</button></div>").join("");
+  // 16 Farbfelder mal jede Kategorie wären eine Wand aus Punkten. Die Palette
+  // klappt deshalb nur für die Kategorie auf, die gerade geändert wird.
+  $("#catList").innerHTML = cats.map(c => {
+    const offen = state.catColorOpen === c.id;
+    return '<div class="catrow' + (offen ? " offen" : "") + '">' +
+      '<button class="chipbtn" type="button" data-catpick="' + c.id + '" aria-expanded="' + offen + '" ' +
+        'aria-label="Farbe von ' + esc(c.name) + ' ändern" style="background:' + catColor(c) + '"></button>' +
+      "<b>" + esc(c.name) + "</b>" +
+      '<button class="icon-btn" type="button" data-catdel="' + c.id + '" aria-label="Kategorie löschen"' + (cats.length<=1?" disabled":"") + ">&#10005;</button>" +
+      (offen ? '<div class="swatches">' + CAT_VARS.map((v,ci) =>
+        '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" : "") +
+      "</div>";
+  }).join("");
 
   $("#cSwatches").innerHTML = CAT_VARS.map((v,ci) =>
     '<button class="sw" type="button" data-newcolor="' + ci + '" aria-pressed="' + (state.newCatColor===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("");
@@ -1297,7 +1319,7 @@ async function quickAddCategory(selectEl){
   const pos = state.plan.categories.length;
   try{
     const { data, error } = await sb.from("categories")
-      .insert({ household_id: state.household.id, name: name, color_index: pos % 8, position: pos })
+      .insert({ household_id: state.household.id, name: name, color_index: pos % CAT_VARS.length, position: pos })
       .select().single();
     if (error) throw error;
     await reloadPlanAndRender();
@@ -1548,10 +1570,17 @@ $("#goalForm").addEventListener("submit", async e => {
 });
 $("#p-settings").addEventListener("click", async e => {
   const cc = e.target.closest("[data-catcolor]"), nc = e.target.closest("[data-newcolor]"),
-        cd = e.target.closest("[data-catdel]"),   pn = e.target.closest("[data-pdelname]");
-  if (cc){
+        cd = e.target.closest("[data-catdel]"),   pn = e.target.closest("[data-pdelname]"),
+        cp = e.target.closest("[data-catpick]");
+  if (cp){
+    // Farbpalette dieser Kategorie auf- oder zuklappen (immer nur eine offen)
+    state.catColorOpen = (state.catColorOpen === cp.dataset.catpick) ? null : cp.dataset.catpick;
+    renderSettings();
+  } else if (cc){
     const [id, ci] = cc.dataset.catcolor.split(":");
+    state.catColorOpen = null;
     if (await guard(() => sb.from("categories").update({ color_index: Number(ci) }).eq("id", id))) await reloadPlanAndRender();
+    else renderSettings();
   } else if (nc){
     state.newCatColor = Number(nc.dataset.newcolor); renderSettings();
   } else if (cd){

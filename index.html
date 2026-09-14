@@ -31,6 +31,7 @@
   --c13:#d04a6d; --c14:#904eba; --c15:#a09600; --c16:#cf71bd;
   --c17:#ff2d9b; --c18:#9d00ff; --c19:#00d5e8; --c20:#2be800;
   --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#3a4149;
+  --c25:#d40000;
   --chip-ring:rgba(0,0,0,.24);
   --shadow:0 1px 2px rgba(19,24,22,.06), 0 8px 24px -16px rgba(19,24,22,.28);
   --r:10px;
@@ -47,6 +48,7 @@
     --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
     --c17:#ff3da6; --c18:#b44bff; --c19:#22e5f5; --c20:#4bff3c;
     --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#5c6570;
+    --c25:#ff3b3b;
     --chip-ring:rgba(255,255,255,.30);
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
   }
@@ -62,6 +64,7 @@
   --c13:#ef587f; --c14:#b86ee9; --c15:#a09600; --c16:#cd66ba;
   --c17:#ff3da6; --c18:#b44bff; --c19:#22e5f5; --c20:#4bff3c;
   --c21:#ffffff; --c22:#c6cbd1; --c23:#8a9199; --c24:#5c6570;
+  --c25:#ff3b3b;
   --chip-ring:rgba(255,255,255,.30);
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
 }
@@ -157,7 +160,23 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 
 .brk{display:grid;gap:12px}
 .brk-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;padding:5px 7px;margin:-5px -7px;border-radius:8px}
+.brk-row{cursor:pointer}
 .brk-row:hover{background:var(--surface-2)}
+.brk-row.offen{background:var(--surface-2)}
+.brk-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.brk-pfeil{font-size:8px;color:var(--ink-3);margin-left:2px;flex:none}
+.brk-detail{grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-strong);display:grid;gap:6px}
+.brk-zeile{display:grid;grid-template-columns:34px 1fr auto auto;gap:10px;align-items:baseline;font-size:13px}
+.brk-zeile:not(:has(.brk-wer)){grid-template-columns:34px 1fr auto}
+.brk-tag{color:var(--ink-3);font-size:12px}
+.brk-was{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brk-wer{color:var(--ink-3);font-size:12px;white-space:nowrap}
+.brk-betrag{font-weight:600;white-space:nowrap}
+.brk-leer{color:var(--ink-3);font-size:13px;margin:0}
+@media(max-width:659px){
+  .brk-zeile{grid-template-columns:30px 1fr auto;gap:8px}
+  .brk-wer{grid-column:2;font-size:11.5px;margin-top:-4px}
+}
 .brk-name{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
 .brk-name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip{width:10px;height:10px;border-radius:3px;flex:none;box-shadow:0 0 0 1px var(--chip-ring)}
@@ -177,7 +196,7 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
   .row.r-exp{grid-template-columns:120px 1fr 150px}
   .row.r-exp2{grid-template-columns:1fr 1fr}
   .row.r-fix{grid-template-columns:1fr 120px 150px 90px}
-  .row.r-inc{grid-template-columns:1fr 120px 150px}
+  .row.r-inc{grid-template-columns:1fr 120px 90px 150px}
   .row.r-2{grid-template-columns:1fr 1fr}
 }
 /* Auf dem Handy stapelt sich alles untereinander. Damit die Knöpfe nicht
@@ -504,6 +523,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
           <div class="row r-inc">
             <label class="f"><span>Bezeichnung</span><input id="iName" placeholder="z. B. Gehalt" required></label>
             <label class="f"><span>Betrag €</span><input id="iAmount" inputmode="decimal" placeholder="0,00" required></label>
+            <label class="f"><span>Kommt am</span><input id="iDay" type="number" min="1" max="31" placeholder="1"></label>
             <label class="f" id="iPersonWrap" hidden><span>Wer bekommt es</span><select id="iPerson"></select></label>
           </div>
           <div class="row r-2" id="iRhythmRow">
@@ -654,12 +674,12 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.01";
+const APP_VERSION = "1.3.0";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
                   "--c9","--c10","--c11","--c12","--c13","--c14","--c15","--c16",
-                  "--c17","--c18","--c19","--c20","--c21","--c22","--c23","--c24"];
+                  "--c17","--c18","--c19","--c20","--c21","--c22","--c23","--c24","--c25"];
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const LS_HH = "haushaltsbuch.household";
@@ -679,6 +699,7 @@ const state = {
   online: true,
   rhythmReady: true   // wird beim Laden geprüft: kennt die Datenbank die Rhythmus-Spalten schon?
   , catColorOpen: null  // Kategorie, deren Farbpalette gerade offen ist
+  , brkOpen: null       // Kategorie, deren Einzelposten im Überblick offen sind
 };
 
 let sb = null, user = null, channel = null;
@@ -781,7 +802,7 @@ function rowsToPlan(hh, cats, items){
   (items||[]).forEach(it => {
     const base = { name: it.name, amount: Number(it.amount)||0, from: it.valid_from || "", to: it.valid_to || "",
                     every: Number(it.interval_months)||1, anchorMonth: Number(it.anchor_month)||1 };
-    if (it.kind === "income") plan.income[it.id] = Object.assign(base, { person: it.person || "" });
+    if (it.kind === "income") plan.income[it.id] = Object.assign(base, { person: it.person || "", day: it.due_day || "" });
     else plan.fixed[it.id] = Object.assign(base, { cat: it.category_id || "", day: it.due_day || "" });
   });
   return plan;
@@ -1089,12 +1110,46 @@ function renderBreakdown(){
     const sub = (r.fix > 0 && r.var > 0)
       ? share + " · variabel " + eur(r.var) + " · fix " + eur(r.fix)
       : share + (r.fix > 0 ? " · komplett feste Kosten" : " · komplett variabel");
-    return '<div class="brk-row">' +
-      '<div class="brk-name"><span class="chip" style="background:' + col + '"></span><b>' + esc(r.cat.name) + "</b></div>" +
+    const offen = state.brkOpen === r.cat.id;
+    return '<div class="brk-row' + (offen ? " offen" : "") + '" role="button" tabindex="0" data-brk="' + esc(r.cat.id) + '" ' +
+      'aria-expanded="' + offen + '" aria-label="' + esc(r.cat.name) + ' aufklappen">' +
+      '<div class="brk-name"><span class="chip" style="background:' + col + '"></span><b>' + esc(r.cat.name) + "</b>" +
+        '<span class="brk-pfeil">' + (offen ? "&#9650;" : "&#9660;") + "</span></div>" +
       '<div class="brk-val num">' + eur(r.total) + "</div>" +
       '<div class="brk-bar">' + parts.join("") + "</div>" +
-      '<div class="brk-sub">' + esc(sub) + "</div></div>";
+      '<div class="brk-sub">' + esc(sub) + "</div>" +
+      (offen ? '<div class="brk-detail">' + kategorieDetail(r.cat.id) + "</div>" : "") +
+      "</div>";
   }).join("");
+}
+
+// Einzelposten einer Kategorie im angezeigten Monat: was, von wem, wann.
+// Feste Kosten zuerst kenntlich gemacht, alles nach Tag aufsteigend sortiert.
+function kategorieDetail(catId){
+  const zeilen = [];
+
+  Object.values(state.plan.fixed).forEach(f => {
+    if ((f.cat || "_") !== catId) return;
+    if (!activeIn(f, state.ym) || !duesIn(f, state.ym)) return;
+    zeilen.push({ tag: Number(f.day) || 99, name: f.name, wer: "", betrag: Number(f.amount)||0, fix: true });
+  });
+
+  Object.values(state.entries).forEach(e => {
+    if ((e.c || "_") !== catId) return;
+    const t = Number(String(e.d).slice(8,10)) || 99;
+    zeilen.push({ tag: t, name: e.n || catById(e.c).name, wer: e.p || "", betrag: Number(e.a)||0, fix: false });
+  });
+
+  zeilen.sort((a,b) => a.tag - b.tag || String(a.name).localeCompare(String(b.name), "de"));
+  if (!zeilen.length) return '<p class="brk-leer">Keine Einzelposten in diesem Monat.</p>';
+
+  return zeilen.map(z =>
+    '<div class="brk-zeile">' +
+      '<span class="brk-tag num">' + (z.tag === 99 ? "—" : String(z.tag).padStart(2,"0") + ".") + "</span>" +
+      '<span class="brk-was">' + esc(z.name) + (z.fix ? ' <span class="tag">fix</span>' : "") + "</span>" +
+      (z.wer ? '<span class="brk-wer">' + esc(z.wer) + "</span>" : "") +
+      '<span class="brk-betrag num">' + eur(z.betrag) + "</span>" +
+    "</div>").join("");
 }
 
 function renderRecent(){
@@ -1151,15 +1206,27 @@ function renderDaily(){
   }).join("");
 }
 
+// Tag im Monat aufsteigend, 1. oben bis 31. unten. Posten ohne Tag hängen
+// hinten dran, sonst stünden sie fälschlich ganz oben.
+function nachTagDannName(a, b){
+  const ta = Number(a[1].day) || 99, tb = Number(b[1].day) || 99;
+  if (ta !== tb) return ta - tb;
+  return String(a[1].name).localeCompare(String(b[1].name), "de");
+}
 function renderIncome(){
   $("#incSum").textContent = "Summe " + eur(incomeFor(state.ym));
-  const inc = Object.entries(state.plan.income).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
+  const inc = Object.entries(state.plan.income).sort(nachTagDannName);
   $("#incList").innerHTML = inc.length ? inc.map(([id,i]) => planRow(id, i, "income")).join("")
     : '<p class="empty">Noch keine Einnahme hinterlegt.<br>Gehalt, Kindergeld, Nebenjob — alles, was monatlich reinkommt.</p>';
 }
 function renderFixed(){
   $("#fixSum").textContent = "Summe " + eur(fixedFor(state.ym));
-  const fx = Object.entries(state.plan.fixed).sort((a,b)=> (Number(b[1].amount)||0) - (Number(a[1].amount)||0));
+  const fx = Object.entries(state.plan.fixed).sort((a,b) => {
+    const ka = catById(a[1].cat).name.toLocaleLowerCase("de");
+    const kb = catById(b[1].cat).name.toLocaleLowerCase("de");
+    if (ka !== kb) return ka.localeCompare(kb, "de");
+    return nachTagDannName(a, b);
+  });
   $("#fixList").innerHTML = fx.length ? fx.map(([id,f]) => planRow(id, f, "fixed")).join("")
     : '<p class="empty">Noch keine feste Ausgabe hinterlegt.<br>Miete, Strom, Handy, Versicherungen, Abos.</p>';
 }
@@ -1174,8 +1241,9 @@ function planRow(id, it, kind){
     if (rhythmText) meta.push("<span>" + esc(rhythmText) + (it.day ? ", am " + esc(it.day) + "." : "") + "</span>");
     else if (it.day) meta.push("<span>fällig am " + esc(it.day) + ".</span>");
   } else {
+    if (rhythmText) meta.push("<span>" + esc(rhythmText) + (it.day ? ", am " + esc(it.day) + "." : "") + "</span>");
+    else if (it.day) meta.push("<span>kommt am " + esc(it.day) + ".</span>");
     if (it.person) meta.push("<span>" + esc(it.person) + "</span>");
-    if (rhythmText) meta.push("<span>" + esc(rhythmText) + "</span>");
   }
   if (it.from) meta.push("<span>ab " + esc(ymLabel(it.from)) + "</span>");
   if (it.to)   meta.push("<span>bis " + esc(ymLabel(it.to)) + "</span>");
@@ -1349,6 +1417,21 @@ function switchTab(name){
   $$(".panel").forEach(p => p.classList.toggle("active", p.id === "p-" + name));
   render();
 }
+// Kategorie im Überblick auf-/zuklappen; es ist immer nur eine offen.
+function brkUmschalten(id){
+  state.brkOpen = (state.brkOpen === id) ? null : id;
+  renderBreakdown();
+}
+$("#breakdown").addEventListener("click", e => {
+  const row = e.target.closest("[data-brk]");
+  if (row) brkUmschalten(row.dataset.brk);
+});
+$("#breakdown").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const row = e.target.closest("[data-brk]");
+  if (row){ e.preventDefault(); brkUmschalten(row.dataset.brk); }
+});
+
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-tab]"); if (b) switchTab(b.dataset.tab);
 });
@@ -1478,8 +1561,10 @@ $("#incForm").addEventListener("submit", async e => {
   if (!isFinite(amount)){ toast("Bitte einen Betrag eingeben"); return; }
   const id = state.editIncome, wasEdit = !!id;
   const every = parseInt($("#iEvery").value, 10) || 1;
+  const iTag = parseInt($("#iDay").value, 10);
   const fields = { name: $("#iName").value.trim() || "Einnahme", amount: Math.abs(amount),
                    person: $("#iPerson").value || null, category_id: null,
+                   due_day: (iTag >= 1 && iTag <= 31) ? iTag : null,
                    interval_months: every, anchor_month: every > 1 ? (parseInt($("#iMonth").value,10) || 1) : 1,
                    valid_from: $("#iFrom").value || null, valid_to: $("#iTo").value || null };
   resetIncForm();
@@ -1529,6 +1614,7 @@ $("#app").addEventListener("click", async e => {
       state.editIncome = id;
       $("#iName").value = it.name; $("#iAmount").value = nf.format(it.amount);
       $("#iPerson").value = it.person || ""; $("#iFrom").value = it.from || ""; $("#iTo").value = it.to || "";
+      $("#iDay").value = it.day || "";
       $("#iEvery").value = String(it.every || 1);
       $("#iMonth").value = String(it.anchorMonth || 1);
       updateRhythmHint("i");

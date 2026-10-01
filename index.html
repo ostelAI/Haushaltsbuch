@@ -703,7 +703,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       <div class="card" id="budgetCard">
         <div class="card-h"><h2>Monatsbudget für Variables</h2></div>
         <div class="card-b">
-          <p class="note" style="margin:0 0 12px">Euer Rahmen für alles, was nicht fest ist — Lebensmittel, Tanken, Freizeit. Im Überblick seht ihr dann bei „Variabel bisher“, wie viel davon noch übrig ist.</p>
+          <p class="note" style="margin:0 0 12px">Euer Rahmen für alles, was nicht fest ist — Lebensmittel, Tanken, Freizeit. Im Überblick seht ihr dann bei „Monatliches Budget“, wie viel davon noch übrig ist.</p>
           <form class="form" id="budgetForm" autocomplete="off">
             <div class="row r-2">
               <label class="f"><span>Betrag €</span><input id="bAmount" inputmode="decimal" placeholder="0,00"></label>
@@ -777,7 +777,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.05";
+const APP_VERSION = "1.2.06";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1249,12 +1249,12 @@ function kpi(cls, label, value, sub, subFarbe, balken){
     '<div class="sub"' + (subFarbe ? ' style="color:' + subFarbe + '"' : "") + ">" + esc(sub) + "</div></div>";
 }
 
-// "Variabel bisher" zeigt den Verbrauch gegen das Monatsbudget, sofern eines
+// Die Kachel zeigt den Verbrauch gegen das Monatsbudget, sofern eines
 // gesetzt ist — sonst wie bisher nur die Anzahl der Einträge.
 function varKpi(s){
   const budget = state.monatsbudgetReady ? (Number(state.plan.budget) || 0) : 0;
   if (budget <= 0)
-    return kpi("k-var", "Variabel bisher", eur(s.variable), Object.keys(state.entries).length + " Einträge");
+    return kpi("k-var", "Monatliches Budget", eur(s.variable), Object.keys(state.entries).length + " Einträge");
 
   const rest = budget - s.variable;
   const anteil = Math.max(0, Math.min(100, (s.variable / budget) * 100));
@@ -1263,7 +1263,7 @@ function varKpi(s){
   const sub = rest >= 0
     ? "noch " + eur(rest) + " von " + eur(budget)
     : eur(-rest) + " über dem Budget von " + eur(budget);
-  return kpi("k-var", "Variabel bisher", eur(s.variable), sub, farbe, balken);
+  return kpi("k-var", "Monatliches Budget", eur(s.variable), sub, farbe, balken);
 }
 
 function renderBreakdown(){

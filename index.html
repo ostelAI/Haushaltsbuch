@@ -177,31 +177,40 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
 
 /* ---------- Cashflow-Zeitstrahl ---------- */
-.cashtag{display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:center;
-  padding:9px 7px;margin:0 -7px;border-top:1px solid var(--line);border-radius:8px;cursor:pointer}
-.cashtag:first-child{border-top:0}
-.cashtag:hover{background:var(--surface-2)}
-.cashtag.offen{background:var(--surface-2)}
-.cashtag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.cash-d{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2)}
-.cashtag .dbar{width:100%;min-width:60px}
-.cash-netto{font-size:12.5px;white-space:nowrap}
-.cash-saldo{font-size:14px;font-weight:600;white-space:nowrap;min-width:84px;text-align:right}
-.cash-detail{grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-strong);display:grid;gap:6px}
-.cash-zeile{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:baseline;font-size:13px}
+/* Eine durchgehende Linie, an der jeder Tag als Punkt hängt. */
+.zeitstrahl{position:relative;list-style:none;margin:0;padding:0 0 0 24px}
+.zeitstrahl::before{content:"";position:absolute;left:5px;top:12px;bottom:12px;width:2px;
+  background:var(--line-strong);border-radius:1px}
+.zs-tag{position:relative;display:grid;grid-template-columns:1fr auto;gap:2px 10px;
+  padding:9px 8px;margin:0 -8px;border-radius:8px;cursor:pointer}
+.zs-tag:hover{background:var(--surface-2)}
+.zs-tag.offen{background:var(--surface-2)}
+.zs-tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.zs-punkt{position:absolute;left:-23px;top:13px;width:12px;height:12px;border-radius:50%;
+  box-shadow:0 0 0 3px var(--surface)}
+.zs-tag.offen .zs-punkt{box-shadow:0 0 0 3px var(--surface-2)}
+.zs-punkt[data-art="ein"]{background:var(--pos-fill)}
+.zs-punkt[data-art="aus"]{background:var(--accent)}
+.zs-datum{grid-column:1;grid-row:1;font-size:12px;color:var(--ink-2);white-space:nowrap;align-self:baseline}
+.zs-netto{grid-column:2;grid-row:1;font-size:15px;font-weight:600;white-space:nowrap;justify-self:end;align-self:baseline}
+.zs-was{grid-column:1;grid-row:2;min-width:0;font-size:12px;color:var(--ink-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zs-saldo{grid-column:2;grid-row:2;font-size:11.5px;color:var(--ink-3);justify-self:end;white-space:nowrap}
+.zs-detail{grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-strong);display:grid;gap:5px}
+.zs-zeile{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;font-size:13px}
+.zs-z-was{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zs-z-betrag{white-space:nowrap;font-weight:500}
 .cash-punkt{width:8px;height:8px;border-radius:2px;box-shadow:0 0 0 1px var(--chip-ring)}
 .cash-punkt.ein{background:var(--pos-fill)}
 .cash-punkt.fix{background:var(--accent)}
 .cash-punkt.var{background:var(--c2)}
-.cash-was{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cash-zusatz{color:var(--ink-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
-.cash-betrag{white-space:nowrap;font-weight:500}
-@media(max-width:659px){
-  .cashtag{grid-template-columns:46px 1fr auto;gap:8px}
-  .cashtag .dbar{display:none}
-  .cash-netto{grid-column:2;text-align:right}
-  .cash-zeile{grid-template-columns:auto 1fr auto}
-  .cash-zusatz{display:none}
+@media(min-width:660px){
+  .zs-tag{grid-template-columns:62px 1fr auto auto;gap:4px 14px;align-items:baseline}
+  .zs-datum{grid-column:1;grid-row:1}
+  .zs-was{grid-column:2;grid-row:1;font-size:13px}
+  .zs-netto{grid-column:3;grid-row:1}
+  .zs-saldo{grid-column:4;grid-row:1;min-width:120px}
+}
 }
 @media(max-width:659px){
   .brk-zeile{grid-template-columns:30px 1fr auto;gap:8px}
@@ -777,7 +786,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.06";
+const APP_VERSION = "1.2.07";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1505,33 +1514,29 @@ function renderCashflow(){
   });
   tage.forEach(t => { saldo += t.ein - t.aus; t.saldo = saldo; if (saldo < tief){ tief = saldo; tiefTag = t; } });
 
-  const maxBewegung = Math.max(1, ...tage.map(t => Math.max(t.ein, t.aus)));
-
   $("#cashSum").textContent = "Endstand " + eur(saldo);
   $("#cashWarn").innerHTML = tiefTag
     ? '<div class="msg err" style="margin-bottom:14px">Das Konto rutscht ins Minus: ' + esc(eur(tief)) +
       " am " + esc(tagLabel(tiefTag.d)) + " So viel muss aus dem Vormonat übrig bleiben, damit nichts platzt.</div>"
     : '<div class="msg ok" style="margin-bottom:14px">Der Monat trägt sich selbst — das Konto bleibt durchgehend im Plus.</div>';
 
-  $("#cashList").innerHTML = tage.map(t => {
+  $("#cashList").innerHTML = '<ol class="zeitstrahl">' + tage.map(t => {
     const offen = state.cashOpen === t.key;
     const netto = t.ein - t.aus;
-    const wEin = (t.ein / maxBewegung) * 50, wAus = (t.aus / maxBewegung) * 50;
-    return '<div class="cashtag' + (offen ? " offen" : "") + '" role="button" tabindex="0" data-cash="' + esc(t.key) + '" aria-expanded="' + offen + '">' +
-      '<span class="cash-d">' + esc(tagLabel(t.d)) + "</span>" +
-      '<span class="dbar"><span class="z"></span>' +
-        (t.aus ? '<i style="right:50%;width:' + wAus.toFixed(2) + '%;background:var(--neg-fill)"></i>' : "") +
-        (t.ein ? '<i style="left:50%;width:' + wEin.toFixed(2) + '%;background:var(--pos-fill)"></i>' : "") +
-      "</span>" +
-      '<span class="cash-netto num" style="color:' + (netto >= 0 ? "var(--pos)" : "var(--ink-2)") + '">' + eurSigned(netto) + "</span>" +
-      '<span class="cash-saldo num" style="color:' + (t.saldo < 0 ? "var(--neg)" : "var(--ink)") + '">' + eur(t.saldo) + "</span>" +
-      (offen ? '<div class="cash-detail">' + t.items.map(p =>
-          '<div class="cash-zeile"><span class="cash-punkt ' + p.art + '"></span>' +
-          '<span class="cash-was">' + esc(p.name) + "</span>" +
-          '<span class="cash-zusatz">' + esc(p.zusatz) + "</span>" +
-          '<span class="cash-betrag num" style="color:' + (p.betrag >= 0 ? "var(--pos)" : "var(--ink)") + '">' + eurSigned(p.betrag) + "</span></div>").join("") + "</div>" : "") +
-      "</div>";
-  }).join("");
+    // Namen der Posten des Tages, gekürzt — damit auf einen Blick klar ist, worum es geht
+    const namen = t.items.map(p => p.name).join(" · ");
+    return '<li class="zs-tag' + (offen ? " offen" : "") + '" role="button" tabindex="0" data-cash="' + esc(t.key) + '" aria-expanded="' + offen + '">' +
+      '<span class="zs-punkt" data-art="' + (netto >= 0 ? "ein" : "aus") + '"></span>' +
+      '<span class="zs-datum num">' + esc(tagLabel(t.d)) + "</span>" +
+      '<span class="zs-netto num" style="color:' + (netto >= 0 ? "var(--pos)" : "var(--ink)") + '">' + eurSigned(netto) + "</span>" +
+      '<span class="zs-was">' + esc(namen) + "</span>" +
+      '<span class="zs-saldo num" style="color:' + (t.saldo < 0 ? "var(--neg)" : "var(--ink-3)") + '">Stand ' + eur(t.saldo) + "</span>" +
+      (offen ? '<div class="zs-detail">' + t.items.map(p =>
+          '<div class="zs-zeile"><span class="cash-punkt ' + p.art + '"></span>' +
+          '<span class="zs-z-was">' + esc(p.name) + "</span>" +
+          '<span class="zs-z-betrag num" style="color:' + (p.betrag >= 0 ? "var(--pos)" : "var(--ink)") + '">' + eurSigned(p.betrag) + "</span></div>").join("") + "</div>" : "") +
+      "</li>";
+  }).join("") + "</ol>";
 
   $("#cashOhne").innerHTML = ohne.length
     ? '<p class="note" style="margin-top:14px"><strong>Ohne Termin</strong> — fehlt der Tag, lässt sich der Posten nicht einordnen:<br>' +

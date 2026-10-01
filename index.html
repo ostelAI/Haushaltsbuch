@@ -715,7 +715,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.02";
+const APP_VERSION = "1.2.03";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1918,9 +1918,18 @@ $("#exportBtn").addEventListener("click", async () => {
   try{
     const r = await sb.from("expenses").select("*").eq("household_id", state.household.id).order("spent_on");
     if (r.error) throw r.error;
-    const rows = [["Typ","Rhythmus","Zeitraum","Datum","Bezeichnung","Kategorie","Person","Betrag EUR"]];
-    Object.values(state.plan.income).forEach(i => rows.push(["Einnahme", rhythmWord(i.every) || "monatlich", (i.from||"") + (i.to?" bis "+i.to:""), "", i.name, "", i.person||"", nf.format(i.amount)]));
-    Object.values(state.plan.fixed).forEach(f => rows.push(["Feste Ausgabe", rhythmWord(f.every) || "monatlich", (f.from||"") + (f.to?" bis "+f.to:""), f.day?("am "+f.day+"."):"", f.name, catById(f.cat).name, "", nf.format(f.amount)]));
+    // Rhythmus samt Fälligkeitsmonat, sonst fehlt bei jährlichen Posten die
+    // entscheidende Angabe, wann sie überhaupt anfallen.
+    const rhythmusText = it => {
+      const e = Number(it.every) || 1;
+      if (e <= 1) return "monatlich";
+      return rhythmWord(e) + " im " + MONTHS[(Number(it.anchorMonth) || 1) - 1];
+    };
+    const tagText = it => it.day ? "am " + it.day + "." : "";
+
+    const rows = [["Typ","Rhythmus","Zeitraum","Tag","Bezeichnung","Kategorie","Person","Betrag EUR"]];
+    Object.values(state.plan.income).forEach(i => rows.push(["Einnahme", rhythmusText(i), (i.from||"") + (i.to?" bis "+i.to:""), tagText(i), i.name, "", i.person||"", nf.format(i.amount)]));
+    Object.values(state.plan.fixed).forEach(f => rows.push(["Feste Ausgabe", rhythmusText(f), (f.from||"") + (f.to?" bis "+f.to:""), tagText(f), f.name, catById(f.cat).name, "", nf.format(f.amount)]));
     (r.data||[]).forEach(e => rows.push(["Ausgabe", "", ymOfDate(e.spent_on), e.spent_on, e.note||"", catById(e.category_id).name, e.person||"", nf.format(Number(e.amount)||0)]));
     const csv = "﻿" + rows.map(x => x.map(csvCell).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));

@@ -157,6 +157,8 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .kpi .sub{font-size:12px;color:var(--ink-3)}
 .kpi.k-in .v{color:var(--pos)}
 .kpi.k-day .v{color:var(--accent)}
+.kpibar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:1px 0 2px}
+.kpibar i{display:block;height:100%;border-radius:3px;min-width:2px}
 
 .brk{display:grid;gap:12px}
 .brk-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline;padding:5px 7px;margin:-5px -7px;border-radius:8px}
@@ -698,6 +700,20 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     </div>
 
     <div class="split two">
+      <div class="card" id="budgetCard">
+        <div class="card-h"><h2>Monatsbudget für Variables</h2></div>
+        <div class="card-b">
+          <p class="note" style="margin:0 0 12px">Euer Rahmen für alles, was nicht fest ist — Lebensmittel, Tanken, Freizeit. Im Überblick seht ihr dann bei „Variabel bisher“, wie viel davon noch übrig ist.</p>
+          <form class="form" id="budgetForm" autocomplete="off">
+            <div class="row r-2">
+              <label class="f"><span>Betrag €</span><input id="bAmount" inputmode="decimal" placeholder="0,00"></label>
+              <label class="f end"><button class="btn sm" type="submit">Speichern</button></label>
+            </div>
+          </form>
+          <p class="tagline" id="budgetHint" style="margin-top:8px"></p>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-h"><h2>Sparziel pro Monat</h2></div>
         <div class="card-b">
@@ -761,7 +777,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.04";
+const APP_VERSION = "1.2.05";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -790,6 +806,7 @@ const state = {
   , cashOpen: null      // Tag im Cashflow, dessen Posten offen sind
   , budgetReady: true   // kennt die Datenbank die Budget-Spalte schon?
   , periodReady: true   // kennt die Datenbank den Abrechnungszeitraum schon?
+  , monatsbudgetReady: true  // kennt sie das Monatsbudget schon?
 };
 
 let sb = null, user = null, channel = null;
@@ -926,6 +943,7 @@ function loadCache(){
 function rowsToPlan(hh, cats, items){
   const plan = { categories: [], people: [], income: {}, fixed: {}, goal: 0 };
   plan.goal = Number(hh.goal) || 0;
+  plan.budget = Number(hh.monthly_budget) || 0;
   plan.people = Array.isArray(hh.people) ? hh.people.slice() : [];
   plan.categories = (cats||[]).map((c,i) => ({ id: c.id, name: c.name, ci: Number(c.color_index)||0,
                                                 budget: Number(c.budget)||0, pos: Number(c.position) }));
@@ -974,6 +992,7 @@ async function loadPlan(){
   // würde beim nächsten Laden vortäuschen, die Spalte sei vorhanden.
   // startTag() fällt bei fehlendem Wert ohnehin auf 1 zurück.
   state.periodReady = ("period_start_day" in hh.data);
+  state.monatsbudgetReady = ("monthly_budget" in hh.data);
   // Fremde E-Mail-Adressen sind bewusst nicht abfragbar — auth.users ist nicht
   // freigegeben. Wir zeigen daher die eigene Adresse und die reine Anzahl.
   if (!mem.error) state.members = mem.data || [];
@@ -1216,15 +1235,35 @@ function renderOverview(){
   $("#kpis").innerHTML = [
     kpi("k-in",  "Einnahmen",           eur(s.income),   Object.keys(state.plan.income).length + " Posten"),
     kpi("k-fix", "Feste Kosten",        eur(s.fixed),    Object.keys(state.plan.fixed).length + " Posten"),
-    kpi("k-var", "Variabel bisher",     eur(s.variable), Object.keys(state.entries).length + " Einträge"),
+    varKpi(s),
     kpi("k-day", "Tagesbudget geplant", eur(perDayPlan), "im Schnitt pro Tag")
   ].join("");
 
   renderBreakdown();
   renderRecent();
 }
-function kpi(cls, label, value, sub){
-  return '<div class="kpi ' + cls + '"><div class="eyebrow">' + esc(label) + '</div><div class="v num">' + esc(value) + '</div><div class="sub">' + esc(sub) + "</div></div>";
+function kpi(cls, label, value, sub, subFarbe, balken){
+  return '<div class="kpi ' + cls + '"><div class="eyebrow">' + esc(label) + '</div>' +
+    '<div class="v num">' + esc(value) + "</div>" +
+    (balken || "") +
+    '<div class="sub"' + (subFarbe ? ' style="color:' + subFarbe + '"' : "") + ">" + esc(sub) + "</div></div>";
+}
+
+// "Variabel bisher" zeigt den Verbrauch gegen das Monatsbudget, sofern eines
+// gesetzt ist — sonst wie bisher nur die Anzahl der Einträge.
+function varKpi(s){
+  const budget = state.monatsbudgetReady ? (Number(state.plan.budget) || 0) : 0;
+  if (budget <= 0)
+    return kpi("k-var", "Variabel bisher", eur(s.variable), Object.keys(state.entries).length + " Einträge");
+
+  const rest = budget - s.variable;
+  const anteil = Math.max(0, Math.min(100, (s.variable / budget) * 100));
+  const farbe = rest < 0 ? "var(--neg)" : (anteil > 85 ? "var(--warn)" : "var(--pos)");
+  const balken = '<div class="kpibar"><i style="width:' + anteil.toFixed(1) + '%;background:' + farbe + '"></i></div>';
+  const sub = rest >= 0
+    ? "noch " + eur(rest) + " von " + eur(budget)
+    : eur(-rest) + " über dem Budget von " + eur(budget);
+  return kpi("k-var", "Variabel bisher", eur(s.variable), sub, farbe, balken);
 }
 
 function renderBreakdown(){
@@ -1608,6 +1647,15 @@ function renderSettings(){
 
   if (document.activeElement !== $("#gAmount")) $("#gAmount").value = state.plan.goal ? nf.format(state.plan.goal) : "";
 
+  if (document.activeElement !== $("#bAmount"))
+    $("#bAmount").value = (state.plan.budget > 0) ? nf.format(state.plan.budget) : "";
+  const frei = incomeFor(state.ym) - fixedFor(state.ym) - (Number(state.plan.goal) || 0);
+  $("#budgetHint").textContent = state.monatsbudgetReady
+    ? "Rechnerisch verfügbar in " + ymLabel(state.ym) + ": " + eur(frei) +
+      " (Einnahmen minus feste Kosten und Sparziel)."
+    : "Dafür fehlt noch das letzte SQL-Update aus schema.sql.";
+  $("#budgetForm").querySelector("button").disabled = !state.monatsbudgetReady;
+
   const tag = startTag();
   if (document.activeElement !== $("#periodDay")) $("#periodDay").value = tag > 1 ? String(tag) : "";
   $("#periodHint").textContent = state.periodReady
@@ -1990,6 +2038,15 @@ $("#personForm").addEventListener("submit", async e => {
   $("#pName").value = "";
   if (await updateHousehold({ people: next })) toast(name + " hinzugefügt");
 });
+$("#budgetForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!state.monatsbudgetReady){ toast("Dafür fehlt noch das SQL-Update aus schema.sql."); return; }
+  const v = parseAmount($("#bAmount").value);
+  const betrag = isFinite(v) ? Math.abs(v) : 0;
+  if (await updateHousehold({ monthly_budget: betrag }))
+    toast(betrag ? "Budget: " + eur(betrag) + " pro Monat" : "Budget entfernt");
+});
+
 $("#goalForm").addEventListener("submit", async e => {
   e.preventDefault();
   const v = parseAmount($("#gAmount").value);

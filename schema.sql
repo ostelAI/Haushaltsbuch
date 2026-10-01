@@ -301,3 +301,8 @@ alter table public.categories add column if not exists budget numeric(12,2) not 
 -- Begrenzt auf 28, damit der Start in jedem Monat existiert (Februar).
 alter table public.households add column if not exists period_start_day smallint not null default 1
   check (period_start_day between 1 and 28);
+
+-- --------------------------- Nachtrag: Budget für variable Ausgaben --
+-- Monatlicher Rahmen für alles, was nicht fest ist (Lebensmittel, Tanken,
+-- Freizeit). 0 bedeutet "kein Budget gesetzt" und ist der Standard.
+alter table public.households add column if not exists monthly_budget numeric(12,2) not null default 0;

@@ -173,6 +173,34 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-wer{color:var(--ink-3);font-size:12px;white-space:nowrap}
 .brk-betrag{font-weight:600;white-space:nowrap}
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
+
+/* ---------- Cashflow-Zeitstrahl ---------- */
+.cashtag{display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:center;
+  padding:9px 7px;margin:0 -7px;border-top:1px solid var(--line);border-radius:8px;cursor:pointer}
+.cashtag:first-child{border-top:0}
+.cashtag:hover{background:var(--surface-2)}
+.cashtag.offen{background:var(--surface-2)}
+.cashtag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cash-d{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2)}
+.cashtag .dbar{width:100%;min-width:60px}
+.cash-netto{font-size:12.5px;white-space:nowrap}
+.cash-saldo{font-size:14px;font-weight:600;white-space:nowrap;min-width:84px;text-align:right}
+.cash-detail{grid-column:1/-1;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-strong);display:grid;gap:6px}
+.cash-zeile{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:baseline;font-size:13px}
+.cash-punkt{width:8px;height:8px;border-radius:2px;box-shadow:0 0 0 1px var(--chip-ring)}
+.cash-punkt.ein{background:var(--pos-fill)}
+.cash-punkt.fix{background:var(--accent)}
+.cash-punkt.var{background:var(--c2)}
+.cash-was{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cash-zusatz{color:var(--ink-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.cash-betrag{white-space:nowrap;font-weight:500}
+@media(max-width:659px){
+  .cashtag{grid-template-columns:46px 1fr auto;gap:8px}
+  .cashtag .dbar{display:none}
+  .cash-netto{grid-column:2;text-align:right}
+  .cash-zeile{grid-template-columns:auto 1fr auto}
+  .cash-zusatz{display:none}
+}
 @media(max-width:659px){
   .brk-zeile{grid-template-columns:30px 1fr auto;gap:8px}
   .brk-wer{grid-column:2;font-size:11.5px;margin-top:-4px}
@@ -417,6 +445,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <button type="button" role="tab" data-tab="daily">Ausgaben eintragen</button>
     <button type="button" role="tab" data-tab="fixed">Fixkosten</button>
     <button type="button" role="tab" data-tab="income">Einnahmen</button>
+    <button type="button" role="tab" data-tab="cash">Cashflow</button>
     <button type="button" role="tab" data-tab="year">Jahr</button>
     <button type="button" role="tab" data-tab="settings">Einstellungen</button>
   </nav>
@@ -562,6 +591,23 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       </div>
     </div>
 
+  </section>
+
+  <section class="panel" id="p-cash">
+    <div class="card">
+      <div class="card-h"><h2>Geldfluss im Monat</h2><span class="eyebrow" id="cashSum"></span></div>
+      <div class="card-b">
+        <div id="cashWarn"></div>
+        <p class="note" style="margin:0 0 14px">Der Verlauf startet bei 0 € und zeigt, ob der Monat sich selbst trägt: Kommt das Geld rechtzeitig für die Abbuchungen? Tipp auf einen Tag zeigt die Einzelposten.</p>
+        <div class="legend">
+          <span><i style="background:var(--pos-fill)"></i>Eingang</span>
+          <span><i style="background:var(--accent)"></i>feste Ausgabe</span>
+          <span><i style="background:var(--c2)"></i>variable Ausgabe</span>
+        </div>
+        <div id="cashList"></div>
+        <div id="cashOhne"></div>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="p-year">
@@ -715,7 +761,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.03";
+const APP_VERSION = "1.2.04";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -741,6 +787,7 @@ const state = {
   rhythmReady: true   // wird beim Laden geprüft: kennt die Datenbank die Rhythmus-Spalten schon?
   , catColorOpen: null  // Kategorie, deren Farbpalette gerade offen ist
   , brkOpen: null       // Kategorie, deren Einzelposten im Überblick offen sind
+  , cashOpen: null      // Tag im Cashflow, dessen Posten offen sind
   , budgetReady: true   // kennt die Datenbank die Budget-Spalte schon?
   , periodReady: true   // kennt die Datenbank den Abrechnungszeitraum schon?
 };
@@ -1129,6 +1176,7 @@ function render(){
   if (state.tab === "daily")    renderDaily();
   if (state.tab === "fixed")    renderFixed();
   if (state.tab === "income")   renderIncome();
+  if (state.tab === "cash")     renderCashflow();
   if (state.tab === "year")     renderYear();
   if (state.tab === "settings") renderSettings();
   fillCatSelects();
@@ -1358,6 +1406,103 @@ function planRow(id, it, kind){
     '<button class="icon-btn" type="button" data-pdel="' + kind + ":" + id + '" aria-label="Löschen">&#10005;</button></div></div>';
 }
 
+// ============================ Cashflow ============================
+// Welches Kalenderdatum hat ein Monatstag im angezeigten Abrechnungszeitraum?
+// Bei verschobenem Zeitraum liegen die hohen Tage im Vormonat.
+function datumFuerTag(ym, tag){
+  const s = startTag(), [y,m] = ym.split("-").map(Number);
+  if (s === 1) return new Date(y, m - 1, tag);
+  return tag >= s ? new Date(y, m - 2, tag) : new Date(y, m - 1, tag);
+}
+
+function cashPosten(){
+  const posten = [], ohne = [];
+
+  Object.entries(state.plan.income).forEach(([id, i]) => {
+    if (!activeIn(i, state.ym) || !duesIn(i, state.ym)) return;
+    const eintrag = { art: "ein", name: i.name, betrag: Number(i.amount)||0, zusatz: i.person || "" };
+    if (i.day) posten.push(Object.assign({ d: datumFuerTag(state.ym, Number(i.day)) }, eintrag));
+    else ohne.push(eintrag);
+  });
+
+  Object.entries(state.plan.fixed).forEach(([id, f]) => {
+    if (!activeIn(f, state.ym) || !duesIn(f, state.ym)) return;
+    const eintrag = { art: "fix", name: f.name, betrag: -(Number(f.amount)||0), zusatz: catById(f.cat).name };
+    if (f.day) posten.push(Object.assign({ d: datumFuerTag(state.ym, Number(f.day)) }, eintrag));
+    else ohne.push(eintrag);
+  });
+
+  Object.values(state.entries).forEach(e => {
+    const d = new Date(String(e.d) + "T00:00:00");
+    if (isNaN(d)) return;
+    posten.push({ d: d, art: "var", name: e.n || catById(e.c).name,
+                  betrag: -(Number(e.a)||0), zusatz: e.p || catById(e.c).name });
+  });
+
+  posten.sort((a,b) => a.d - b.d);
+  return { posten, ohne };
+}
+
+function renderCashflow(){
+  const { posten, ohne } = cashPosten();
+
+  if (!posten.length && !ohne.length){
+    $("#cashSum").textContent = "";
+    $("#cashWarn").innerHTML = "";
+    $("#cashList").innerHTML = '<p class="empty">Noch nichts hinterlegt für ' + esc(ymLabel(state.ym)) + ".<br>Trage Einnahmen und feste Ausgaben ein, dann entsteht hier der Verlauf.</p>";
+    $("#cashOhne").innerHTML = "";
+    return;
+  }
+
+  // Nach Tagen bündeln und den laufenden Kontostand mitführen
+  const tage = [];
+  let saldo = 0, tief = 0, tiefTag = null;
+  posten.forEach(p => {
+    const key = iso(p.d);
+    let t = tage[tage.length - 1];
+    if (!t || t.key !== key){ t = { key: key, d: p.d, items: [], ein: 0, aus: 0 }; tage.push(t); }
+    t.items.push(p);
+    if (p.betrag >= 0) t.ein += p.betrag; else t.aus += -p.betrag;
+  });
+  tage.forEach(t => { saldo += t.ein - t.aus; t.saldo = saldo; if (saldo < tief){ tief = saldo; tiefTag = t; } });
+
+  const maxBewegung = Math.max(1, ...tage.map(t => Math.max(t.ein, t.aus)));
+
+  $("#cashSum").textContent = "Endstand " + eur(saldo);
+  $("#cashWarn").innerHTML = tiefTag
+    ? '<div class="msg err" style="margin-bottom:14px">Das Konto rutscht ins Minus: ' + esc(eur(tief)) +
+      " am " + esc(tagLabel(tiefTag.d)) + " So viel muss aus dem Vormonat übrig bleiben, damit nichts platzt.</div>"
+    : '<div class="msg ok" style="margin-bottom:14px">Der Monat trägt sich selbst — das Konto bleibt durchgehend im Plus.</div>';
+
+  $("#cashList").innerHTML = tage.map(t => {
+    const offen = state.cashOpen === t.key;
+    const netto = t.ein - t.aus;
+    const wEin = (t.ein / maxBewegung) * 50, wAus = (t.aus / maxBewegung) * 50;
+    return '<div class="cashtag' + (offen ? " offen" : "") + '" role="button" tabindex="0" data-cash="' + esc(t.key) + '" aria-expanded="' + offen + '">' +
+      '<span class="cash-d">' + esc(tagLabel(t.d)) + "</span>" +
+      '<span class="dbar"><span class="z"></span>' +
+        (t.aus ? '<i style="right:50%;width:' + wAus.toFixed(2) + '%;background:var(--neg-fill)"></i>' : "") +
+        (t.ein ? '<i style="left:50%;width:' + wEin.toFixed(2) + '%;background:var(--pos-fill)"></i>' : "") +
+      "</span>" +
+      '<span class="cash-netto num" style="color:' + (netto >= 0 ? "var(--pos)" : "var(--ink-2)") + '">' + eurSigned(netto) + "</span>" +
+      '<span class="cash-saldo num" style="color:' + (t.saldo < 0 ? "var(--neg)" : "var(--ink)") + '">' + eur(t.saldo) + "</span>" +
+      (offen ? '<div class="cash-detail">' + t.items.map(p =>
+          '<div class="cash-zeile"><span class="cash-punkt ' + p.art + '"></span>' +
+          '<span class="cash-was">' + esc(p.name) + "</span>" +
+          '<span class="cash-zusatz">' + esc(p.zusatz) + "</span>" +
+          '<span class="cash-betrag num" style="color:' + (p.betrag >= 0 ? "var(--pos)" : "var(--ink)") + '">' + eurSigned(p.betrag) + "</span></div>").join("") + "</div>" : "") +
+      "</div>";
+  }).join("");
+
+  $("#cashOhne").innerHTML = ohne.length
+    ? '<p class="note" style="margin-top:14px"><strong>Ohne Termin</strong> — fehlt der Tag, lässt sich der Posten nicht einordnen:<br>' +
+      ohne.map(o => esc(o.name) + " " + esc(eur(Math.abs(o.betrag)))).join(" · ") + "</p>"
+    : "";
+}
+function tagLabel(d){
+  return String(d.getDate()).padStart(2,"0") + "." + String(d.getMonth()+1).padStart(2,"0") + ".";
+}
+
 async function renderYear(){
   $("#yearLabel").textContent = state.year;
   try{ await loadYear(state.year); }catch(e){ toast(errText(e)); }
@@ -1544,6 +1689,20 @@ function brkUmschalten(id){
   state.brkOpen = (state.brkOpen === id) ? null : id;
   renderBreakdown();
 }
+function cashUmschalten(key){
+  state.cashOpen = (state.cashOpen === key) ? null : key;
+  renderCashflow();
+}
+$("#cashList").addEventListener("click", e => {
+  const r = e.target.closest("[data-cash]");
+  if (r) cashUmschalten(r.dataset.cash);
+});
+$("#cashList").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const r = e.target.closest("[data-cash]");
+  if (r){ e.preventDefault(); cashUmschalten(r.dataset.cash); }
+});
+
 $("#breakdown").addEventListener("click", e => {
   const row = e.target.closest("[data-brk]");
   if (row) brkUmschalten(row.dataset.brk);

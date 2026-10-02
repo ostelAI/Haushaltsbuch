@@ -130,67 +130,6 @@ Ab dann seht ihr dieselben Zahlen, jeder mit eigenem Login.
 
 ---
 
-## Kassenzettel fotografieren (optional)
-
-Die App kann einen Kassenzettel abfotografieren und Betrag, Datum, Geschäft und
-Kategorie ins Formular schreiben. **Eingetragen wird nichts automatisch** — das
-Ergebnis füllt nur die Felder, du prüfst und drückst „Eintragen". Ein still
-falsch übernommener Betrag wäre schlimmer als gar keine Automatik.
-
-Ohne die folgenden drei Schritte ist der Knopf zwar da, meldet aber einen
-Fehler. Alles andere in der App funktioniert unabhängig davon.
-
-### 1. API-Schlüssel besorgen
-
-Auf [console.claude.com](https://console.claude.com) ein Konto anlegen, Guthaben
-aufladen (5 $ reichen für Jahre) und unter **API Keys** einen Schlüssel
-erstellen. Er beginnt mit `sk-ant-`.
-
-**Dieser Schlüssel darf niemals in `config.js` oder sonst in dieses
-Repository.** Anders als der Supabase-anon-key ist er nicht für die
-Öffentlichkeit gemacht — wer ihn hat, lässt auf deine Rechnung lesen. Er gehört
-ausschließlich als Secret zu Supabase, Schritt 2.
-
-### 2. Funktion veröffentlichen
-
-Einmalig die [Supabase CLI](https://supabase.com/docs/guides/cli) installieren,
-dann im Projektordner:
-
-```bash
-supabase login
-supabase link --project-ref DEINE-PROJEKT-ID
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-DEIN-SCHLUESSEL
-supabase functions deploy beleg-lesen
-```
-
-Die Projekt-ID ist der Teil vor `.supabase.co` in deiner Projekt-URL.
-
-### 3. Fertig
-
-Der Knopf **Kassenzettel fotografieren** steht unter *Ausgaben eintragen*. Auf
-dem Handy öffnet er direkt die Kamera.
-
-### Was das kostet
-
-Rund **0,3 Cent pro Beleg** — bei 30 Belegen im Monat etwa 10 Cent. Das ist der
-einzige laufende Kostenpunkt der App; Supabase und GitHub Pages bleiben im
-kostenlosen Rahmen. Die Edge Function prüft die Anmeldung, es kann also niemand
-Fremdes auf deine Rechnung lesen lassen.
-
-### Was mit dem Foto passiert
-
-Das Bild wird im Browser verkleinert, einmal zum Auslesen geschickt und danach
-verworfen. Es wird **nirgends gespeichert** — weder bei Supabase noch sonstwo.
-Verarbeitet wird es bei Anthropic; wenn dir das bei Belegen unangenehm ist,
-lass diese Funktion einfach weg und trag wie bisher von Hand ein.
-
-Welches Modell liest, steht als einzelne Zeile oben in
-`supabase/functions/beleg-lesen/index.ts`. Voreingestellt ist das schnelle und
-günstige Haiku 4.5. Wenn zerknitterte Bons schlecht erkannt werden, lohnt ein
-Wechsel auf `claude-opus-5-5` — dann kostet ein Beleg etwa 1,5 Cent.
-
----
-
 ## Was in welcher Datei steckt
 
 | Datei | Zweck |
@@ -198,7 +137,6 @@ Wechsel auf `claude-opus-5-5` — dann kostet ein Beleg etwa 1,5 Cent.
 | `index.html` | Die komplette App — Oberfläche, Berechnung, Datenbankzugriff |
 | `config.js` | Deine zwei Supabase-Zugangsdaten |
 | `schema.sql` | Tabellen und Zugriffsregeln, einmalig in Supabase ausführen |
-| `supabase/functions/beleg-lesen/` | Liest fotografierte Kassenzettel aus. Optional, siehe oben |
 | `haushaltsbuch.html` | Die ältere Fassung als Claude-Artifact. Läuft weiter, teilt aber nur zwischen deinen eigenen Geräten. Kann gelöscht werden, sobald die neue Fassung steht. |
 
 ---

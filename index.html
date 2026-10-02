@@ -176,14 +176,6 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-betrag{font-weight:600;white-space:nowrap}
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
 
-/* ---------- Beleg fotografieren ---------- */
-.beleg{margin-bottom:14px}
-.beleg .btn{display:inline-flex;align-items:center;gap:8px}
-.beleg .btn[disabled]{opacity:.6;cursor:default}
-.beleg-hinweis{margin:8px 0 0;font-size:12.5px;color:var(--ink-3)}
-.beleg-hinweis[data-art="fehler"]{color:var(--neg)}
-.beleg-hinweis[data-art="treffer"]{color:var(--pos)}
-
 /* ---------- Cashflow-Zeitstrahl ---------- */
 /* Eine durchgehende Linie, an der jeder Tag als Punkt hängt. */
 .zeitstrahl{position:relative;list-style:none;margin:0;padding:0 0 0 24px}
@@ -511,17 +503,6 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <div class="card">
       <div class="card-h"><h2 id="expFormTitle">Neue Ausgabe</h2><span class="eyebrow">Enter zum Speichern</span></div>
       <div class="card-b">
-        <div class="beleg">
-          <button class="btn ghost" type="button" id="belegBtn">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-              <path d="M3 8.5V6a1 1 0 0 1 1-1h2.5l1.2-1.8A1 1 0 0 1 8.5 3h7a1 1 0 0 1 .8.4L17.5 5H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5Z"/>
-              <circle cx="12" cy="11.5" r="3.4"/>
-            </svg>
-            Kassenzettel fotografieren
-          </button>
-          <input type="file" id="belegFile" accept="image/*" capture="environment" hidden>
-          <p class="beleg-hinweis" id="belegHinweis" hidden></p>
-        </div>
         <form class="form" id="expForm" autocomplete="off">
           <div class="row r-exp">
             <label class="f"><span>Betrag €</span><input id="eAmount" inputmode="decimal" placeholder="0,00" required></label>
@@ -805,7 +786,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.00";
+const APP_VERSION = "1.2.07";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1820,7 +1801,6 @@ $("#yNext").addEventListener("click", () => { state.year++; renderYear(); });
 function resetExpForm(){
   state.editEntry = null;
   $("#expForm").reset();
-  belegHinweis("");
   $("#eDate").value = (state.ym === heuteYm()) ? todayISO() : monthStart(state.ym);
   $("#expFormTitle").textContent = "Neue Ausgabe";
   $("#eSubmit").textContent = "Eintragen";
@@ -1842,81 +1822,6 @@ $("#expForm").addEventListener("submit", async e => {
   if (ok) toast(wasEdit ? "Eintrag geändert" : eur(entry.a) + " eingetragen");
   $("#eAmount").focus();
 });
-// ---------------------------------------------------------------------------
-//  Kassenzettel fotografieren
-//
-//  Das Bild geht einmal an die Edge Function "beleg-lesen", wird dort
-//  ausgelesen und danach verworfen — gespeichert wird es nirgends. Das
-//  Ergebnis füllt nur das Formular aus; eingetragen wird erst, wenn du
-//  "Eintragen" drückst. Ein still falsch übernommener Betrag wäre schlimmer
-//  als gar keine Automatik.
-// ---------------------------------------------------------------------------
-
-// Große Handyfotos vor dem Hochladen verkleinern: spart Upload-Zeit und Kosten,
-// ohne dass der Bon unleserlich wird. "from-image" dreht nach EXIF gerade —
-// ein querliegender Beleg wird sonst deutlich schlechter erkannt.
-async function belegVerkleinern(datei, maxKante = 1600){
-  const bitmap = await createImageBitmap(datei, { imageOrientation: "from-image" });
-  const f = Math.min(1, maxKante / Math.max(bitmap.width, bitmap.height));
-  const c = document.createElement("canvas");
-  c.width  = Math.round(bitmap.width  * f);
-  c.height = Math.round(bitmap.height * f);
-  c.getContext("2d").drawImage(bitmap, 0, 0, c.width, c.height);
-  bitmap.close();
-  return c.toDataURL("image/jpeg", 0.82).split(",")[1];
-}
-
-function belegHinweis(text, art){
-  const el = $("#belegHinweis");
-  el.textContent = text || "";
-  el.hidden = !text;
-  if (art) el.dataset.art = art; else delete el.dataset.art;
-}
-
-$("#belegBtn").addEventListener("click", () => $("#belegFile").click());
-
-$("#belegFile").addEventListener("change", async e => {
-  const datei = e.target.files && e.target.files[0];
-  e.target.value = "";                      // damit dasselbe Foto erneut gewählt werden kann
-  if (!datei) return;
-
-  const knopf = $("#belegBtn");
-  knopf.disabled = true;
-  belegHinweis("Beleg wird gelesen …", null);
-
-  try{
-    const bild = await belegVerkleinern(datei);
-    const { data, error } = await sb.functions.invoke("beleg-lesen", {
-      body: {
-        bild: bild,
-        typ: "image/jpeg",
-        kategorien: state.plan.categories.map(c => c.name),
-        heute: todayISO()
-      }
-    });
-    if (error) throw new Error(error.message || "Aufruf fehlgeschlagen");
-    if (!data || !data.lesbar) throw new Error((data && data.fehler) || "Auf dem Foto war kein Betrag zu erkennen.");
-
-    $("#eAmount").value = nf.format(data.betrag);
-    if (data.haendler) $("#eNote").value = data.haendler;
-    if (data.datum)    $("#eDate").value = data.datum;
-
-    const treffer = data.kategorie && state.plan.categories.find(c => c.name === data.kategorie);
-    if (treffer) $("#eCat").value = treffer.id;
-
-    belegHinweis(
-      treffer ? "Erkannt: " + eur(data.betrag) + " · " + treffer.name + " — bitte prüfen und eintragen."
-              : "Erkannt: " + eur(data.betrag) + " — bitte Kategorie wählen und eintragen.",
-      "treffer");
-    (treffer ? $("#eAmount") : $("#eCat")).focus();
-
-  }catch(err){
-    belegHinweis(err.message || "Der Beleg konnte nicht gelesen werden.", "fehler");
-  }finally{
-    knopf.disabled = false;
-  }
-});
-
 $("#eCancel").addEventListener("click", () => { resetExpForm(); render(); });
 $("#expList").addEventListener("click", async e => {
   const del = e.target.closest("[data-del]"), ed = e.target.closest("[data-edit]");

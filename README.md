@@ -28,6 +28,11 @@ jedem Gerät.
 Das legt die Tabellen an und schaltet die Zugriffsregeln scharf: Ohne Anmeldung
 und ohne Mitgliedschaft in einem Haushalt sind alle Tabellen leer.
 
+**Nach einem Update der App:** `schema.sql` einfach nochmal komplett ausführen.
+Die Datei ist so geschrieben, dass das gefahrlos geht — sie legt nur an, was
+fehlt, und rührt vorhandene Daten nicht an. Fehlt eine neuere Spalte, sagt die
+App es an der betreffenden Stelle, statt kommentarlos zu versagen.
+
 ### 3. Zugangsdaten eintragen
 
 1. Links auf **Project Settings** → **API**.

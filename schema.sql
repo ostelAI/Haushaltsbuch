@@ -306,3 +306,16 @@ alter table public.households add column if not exists period_start_day smallint
 -- Monatlicher Rahmen für alles, was nicht fest ist (Lebensmittel, Tanken,
 -- Freizeit). 0 bedeutet "kein Budget gesetzt" und ist der Standard.
 alter table public.households add column if not exists monthly_budget numeric(12,2) not null default 0;
+
+-- ------------------------------ Nachtrag: Wer bin ich in diesem Haushalt --
+-- person: welchem Namen aus households.people dieses Konto entspricht.
+-- Damit kann die App beim Eintragen "wer hat gezahlt" vorausfüllen, statt
+-- es jedes Mal abzufragen. NULL bedeutet "noch nicht zugeordnet" und ist der
+-- Standard — dann verhält sich die App wie bisher.
+alter table public.household_members add column if not exists person text;
+
+-- Bisher gab es nur select und delete. Zum Setzen des eigenen Namens darf
+-- jeder genau seine eigene Zeile ändern, keine fremde.
+drop policy if exists members_update on public.household_members;
+create policy members_update on public.household_members
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

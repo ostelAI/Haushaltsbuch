@@ -102,6 +102,36 @@ header.top{position:sticky; top:0; z-index:20; background:var(--paper); border-b
 .today-btn:hover{border-color:var(--line-strong); color:var(--ink)}
 .monthnav{display:flex;align-items:center;gap:10px}
 .sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3)}
+
+/* Was gibt's Neues — Knopf in der Kopfzeile, blinkt bei ungelesener Version */
+.neu-btn{position:relative;display:inline-flex;align-items:center;gap:6px;
+  background:none;border:1px solid var(--line-strong);border-radius:999px;
+  padding:4px 11px;font:inherit;font-size:12px;color:var(--ink-2);cursor:pointer}
+.neu-btn:hover{background:var(--surface-2);color:var(--ink)}
+.neu-punkt{width:7px;height:7px;border-radius:50%;background:var(--pos-fill);
+  animation:neuBlink 1.6s ease-in-out infinite}
+@keyframes neuBlink{0%,100%{opacity:1}50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){ .neu-punkt{animation:none} }
+.neu-lage{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);
+  display:flex;align-items:center;justify-content:center;padding:18px}
+.neu-box{background:var(--surface);border:1px solid var(--line-strong);border-radius:14px;
+  width:min(560px,100%);max-height:min(72vh,640px);display:flex;flex-direction:column;
+  box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.neu-kopf{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 16px;border-bottom:1px solid var(--line-strong)}
+.neu-kopf h2{margin:0;font-size:15px}
+.neu-zu{background:none;border:0;font-size:24px;line-height:1;color:var(--ink-3);cursor:pointer;padding:0 4px}
+.neu-zu:hover{color:var(--ink)}
+.neu-inhalt{overflow:auto;padding:4px 16px 16px}
+.neu-v{padding:14px 0;border-bottom:1px solid var(--line)}
+.neu-v:last-child{border-bottom:0}
+.neu-v-kopf{display:flex;align-items:baseline;gap:9px;margin-bottom:6px;flex-wrap:wrap}
+.neu-v-nr{font-size:12px;font-weight:650;color:var(--ink)}
+.neu-v-dat{font-size:11.5px;color:var(--ink-3)}
+.neu-v-mark{font-size:10.5px;font-weight:650;color:var(--pos);
+  border:1px solid var(--pos);border-radius:999px;padding:1px 7px}
+.neu-v ul{margin:0;padding-left:18px}
+.neu-v li{font-size:13px;color:var(--ink-2);margin:3px 0}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
 .dot.on{background:var(--pos-fill)}
 .dot.local{background:var(--warn-fill)}
@@ -232,7 +262,7 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .form{display:grid;gap:9px}
 .row{display:grid;gap:9px}
 @media(min-width:660px){
-  .row.r-exp{grid-template-columns:120px 1fr 150px}
+  .row.r-exp{grid-template-columns:120px 170px 1fr}
   .row.r-exp2{grid-template-columns:1fr 1fr}
   .row.r-fix{grid-template-columns:1fr 120px 150px 90px}
   .row.r-inc{grid-template-columns:1fr 120px 90px 150px}
@@ -279,11 +309,41 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .icon-btn{background:none;border:0;color:var(--ink-3);cursor:pointer;padding:6px 8px;border-radius:7px;line-height:1;font-size:14px}
 .icon-btn:hover{background:var(--surface-2);color:var(--neg)}
 .icon-btn.edit:hover{color:var(--accent)}
-.daygroup{margin-top:18px}
+/* Jeder Tag ein eigener Block. Auf dem Handy stehen die Zeilen sonst als ein
+   durchgehender Strom da und man sieht nicht, wo ein Tag aufhört. */
+.daygroup{margin-top:20px}
 .daygroup:first-child{margin-top:0}
-.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:7px;border-bottom:1px solid var(--line-strong)}
-.dayhead .d{font-size:12.5px;font-weight:600;color:var(--ink-2)}
-.dayhead .s{font-size:12.5px;color:var(--ink-3)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:0 0 7px;border-bottom:2px solid var(--line-strong)}
+.dayhead .d{font-size:12.5px;font-weight:650;color:var(--ink-2);letter-spacing:.02em}
+.dayhead .s{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+@media(max-width:659px){
+  .daygroup{margin-top:14px;padding:10px 11px 4px;border-radius:10px;
+    background:var(--surface-2);border:1px solid var(--line)}
+  .dayhead{border-bottom-width:1px;margin-bottom:2px}
+  .dayhead .d{font-size:12px;text-transform:uppercase}
+  /* Kategorie + Name passen nebeneinander nicht immer hin. Lieber die
+     Kategorie abschneiden als die Zeile umbrechen — sonst steht jede zweite
+     Zeile anders hoch und die Liste wirkt unruhig. */
+  .item-main .m{flex-wrap:nowrap;overflow:hidden}
+  .item-main .m>span{flex-shrink:0;white-space:nowrap}
+  .item-main .m>span:first-child{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+}
+
+/* Aufklappbarer Teil des Ausgabenformulars: Datum und Person sind fast immer
+   richtig vorbelegt und müssen nicht dauernd Platz kosten. */
+.mehr{margin-top:2px}
+.mehr>summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;color:var(--ink-3);padding:4px 0;user-select:none}
+.mehr>summary::-webkit-details-marker{display:none}
+.mehr>summary::before{content:"▸";font-size:10px;transition:transform .15s}
+.mehr[open]>summary::before{transform:rotate(90deg)}
+.mehr>summary:hover{color:var(--ink-2)}
+.mehr .mehr-zu{display:none}
+.mehr[open] .mehr-auf{display:none}
+.mehr[open] .mehr-zu{display:inline}
+.mehr .row{margin-top:8px}
+.f>span .opt{font-style:normal;color:var(--ink-3);font-weight:400;text-transform:none;letter-spacing:0}
 .empty{text-align:center;color:var(--ink-3);font-size:14px;padding:28px 10px;line-height:1.6}
 .dotchip{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:0;box-shadow:0 0 0 1px var(--chip-ring)}
 
@@ -446,6 +506,9 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       </div>
       <button class="today-btn" id="todayBtn" type="button" hidden>Heute</button>
     </div>
+    <button class="neu-btn" id="neuBtn" type="button" title="Was gibt's Neues">
+      <span class="neu-punkt" id="neuPunkt" hidden></span>Neues
+    </button>
     <div class="sync" id="sync"><span class="dot" id="syncDot"></span><span id="syncText">verbinde…</span></div>
   </div>
 </header>
@@ -506,13 +569,16 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
         <form class="form" id="expForm" autocomplete="off">
           <div class="row r-exp">
             <label class="f"><span>Betrag €</span><input id="eAmount" inputmode="decimal" placeholder="0,00" required></label>
-            <label class="f"><span>Wofür</span><input id="eNote" placeholder="z. B. Wocheneinkauf"></label>
             <label class="f"><span>Kategorie</span><select id="eCat"></select></label>
+            <label class="f"><span>Wofür <i class="opt">optional</i></span><input id="eNote" placeholder="z. B. Wocheneinkauf"></label>
           </div>
-          <div class="row r-exp2">
-            <label class="f"><span>Datum</span><input id="eDate" type="date"></label>
-            <label class="f" id="ePersonWrap" hidden><span>Wer hat gezahlt</span><select id="ePerson"></select></label>
-          </div>
+          <details class="mehr" id="eMehr">
+            <summary><span class="mehr-auf">Datum und Person ändern</span><span class="mehr-zu">weniger</span></summary>
+            <div class="row r-exp2">
+              <label class="f"><span>Datum</span><input id="eDate" type="date"></label>
+              <label class="f" id="ePersonWrap" hidden><span>Wer hat gezahlt</span><select id="ePerson"></select></label>
+            </div>
+          </details>
           <div class="actions">
             <button class="btn" type="submit" id="eSubmit">Eintragen</button>
             <button class="btn ghost" type="button" id="eCancel" hidden>Abbrechen</button>
@@ -698,6 +764,11 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
         <div class="card-b">
           <p class="note" style="margin:0 0 12px">Tragt eure Namen ein, wenn ihr sehen wollt, wer eine Ausgabe bezahlt hat und wessen Gehalt welche Einnahme ist. Solange hier nichts steht, bleiben diese Felder beim Eintragen ausgeblendet — ihr müsst sie also nicht benutzen.</p>
           <div id="peopleList"></div>
+          <label class="f" id="meWrap" style="margin-top:14px" hidden>
+            <span>Ich bin</span>
+            <select id="meSelect"></select>
+          </label>
+          <p class="note" id="meHinweis" style="margin:8px 0 0" hidden>Dafür fehlt noch eine Spalte in der Datenbank — führ den Nachtrag aus <code>schema.sql</code> in Supabase aus, dann lässt sich das hier setzen.</p>
           <form class="form" id="personForm" style="margin-top:12px" autocomplete="off">
             <div class="row r-2">
               <label class="f"><span>Name</span><input id="pName" placeholder="z. B. Anna" required></label>
@@ -778,6 +849,15 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 </div>
 </div>
 
+<div class="neu-lage" id="neuLage" hidden>
+  <div class="neu-box" role="dialog" aria-modal="true" aria-labelledby="neuTitel">
+    <div class="neu-kopf">
+      <h2 id="neuTitel">Was gibt's Neues</h2>
+      <button class="neu-zu" id="neuZu" type="button" aria-label="Schließen">&times;</button>
+    </div>
+    <div class="neu-inhalt" id="neuInhalt"></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -786,7 +866,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.2.07";
+const APP_VERSION = "1.3.00";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -796,10 +876,42 @@ const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August",
 const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const LS_HH = "haushaltsbuch.household";
 const LS_CACHE = "haushaltsbuch.cache";
+const LS_GESEHEN = "haushaltsbuch.gesehen";
+
+// Änderungsverlauf, neueste Version oben. Beim Veröffentlichen einer neuen
+// Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
+// im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
+const AENDERUNGEN = [
+  { v: "1.3.00", d: "2026-10-07", punkte: [
+      "Kategorien stehen beim Eintragen jetzt alphabetisch — Namen findet man ohne Suchen.",
+      "Neue Reihenfolge im Formular: erst Betrag, dann Kategorie, dann „Wofür“ (optional).",
+      "Datum und „wer hat gezahlt“ sind eingeklappt. Beides ist vorbelegt und muss nur im Ausnahmefall angefasst werden.",
+      "In den Einstellungen lässt sich unter „Ich bin“ einmalig festlegen, wer du bist. Danach trägt die App das beim Eintragen selbst ein.",
+      "Die Tagesblöcke unter „Ausgaben im Monat“ sind auf dem Handy deutlich klarer getrennt.",
+      "Dieser Verlauf hier — der Punkt oben blinkt, wenn es etwas Neues gibt."
+    ]},
+  { v: "1.2.07", d: "2026-10-01", punkte: [
+      "Der Cashflow ist ein durchgehender Zeitstrahl statt einzelner Balkenkarten: eine Linie, an der jeder Tag mit Betrag und Kontostand hängt."
+    ]},
+  { v: "1.2.06", d: "2026-10-01", punkte: [
+      "Die Kachel heißt „Monatliches Budget“ statt „Variabel bisher“.",
+      "Monatsbudget für variable Ausgaben eingeführt."
+    ]},
+  { v: "1.2.04", d: "2026-10-01", punkte: [
+      "Neuer Reiter „Cashflow“: zeigt über den Monat, ob das Geld rechtzeitig für die Abbuchungen da ist.",
+      "Der CSV-Export verschluckte den Tag bei Einnahmen und den Monat bei jährlichen Posten — behoben."
+    ]},
+  { v: "1.2.0", d: "2026-09-14", punkte: [
+      "Budgets je Kategorie, eigener Abrechnungszeitraum, Sortierung und Darstellung einstellbar.",
+      "Kategorien aufklappbar, Datum bei Einnahmen, Farbpalette auf 25 Farben erweitert."
+    ]}
+];
 
 const state = {
   household: null,                                  // {id, name, goal, people}
   plan: { categories: [], people: [], income: {}, fixed: {}, goal: 0 },
+  meName: "",             // welcher Name aus plan.people zu diesem Konto gehört
+  meReady: false,         // hat die Datenbank die Spalte household_members.person?
   ym: ymOf(new Date()),   // wird nach dem Laden auf den Abrechnungsmonat gesetzt
   entries: {},
   tab: "overview",
@@ -823,6 +935,7 @@ let sb = null, user = null, channel = null;
 const $  = (s, r) => (r||document).querySelector(s);
 const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
 $("#verBadge").textContent = "v" + APP_VERSION;
+neuPunktPruefen();
 
 function ymOf(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
 function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -885,6 +998,54 @@ function parseAmount(v){
   return isFinite(n) ? n : NaN;
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ---------------------------------------------------------------------------
+//  Was gibt's Neues
+// ---------------------------------------------------------------------------
+// Verglichen wird gegen die zuletzt gelesene Version im Browser. Wer die App
+// zum ersten Mal öffnet, bekommt keinen Blinkpunkt — sonst blinkt es für
+// jemanden, der noch gar nichts kennt, was er verpasst haben könnte.
+function versionZahl(v){
+  const t = String(v).split(".").map(n => parseInt(n,10)||0);
+  return t[0]*1000000 + (t[1]||0)*1000 + (t[2]||0);
+}
+function gesehenLesen(){
+  try { return localStorage.getItem(LS_GESEHEN) || ""; } catch(e){ return ""; }
+}
+function gesehenSetzen(v){
+  try { localStorage.setItem(LS_GESEHEN, v); } catch(e){}
+}
+function neuPunktPruefen(){
+  const gesehen = gesehenLesen();
+  if (!gesehen){ gesehenSetzen(APP_VERSION); $("#neuPunkt").hidden = true; return; }
+  $("#neuPunkt").hidden = versionZahl(APP_VERSION) <= versionZahl(gesehen);
+}
+function neuOeffnen(){
+  const gesehen = gesehenLesen();
+  $("#neuInhalt").innerHTML = AENDERUNGEN.map(a => {
+    const istNeu = gesehen && versionZahl(a.v) > versionZahl(gesehen);
+    const dt = new Date(a.d + "T00:00:00");
+    const datum = isNaN(dt) ? esc(a.d)
+      : String(dt.getDate()).padStart(2,"0") + ". " + MONTHS[dt.getMonth()] + " " + dt.getFullYear();
+    return '<div class="neu-v"><div class="neu-v-kopf"><span class="neu-v-nr">Version ' + esc(a.v) + "</span>" +
+      '<span class="neu-v-dat">' + datum + "</span>" +
+      (istNeu ? '<span class="neu-v-mark">neu</span>' : "") + "</div>" +
+      "<ul>" + a.punkte.map(t => "<li>" + esc(t) + "</li>").join("") + "</ul></div>";
+  }).join("");
+  $("#neuLage").hidden = false;
+  $("#neuZu").focus();
+  // Erst beim Lesen als gesehen merken, nicht schon beim Laden der Seite.
+  gesehenSetzen(APP_VERSION);
+  $("#neuPunkt").hidden = true;
+}
+function neuSchliessen(){ $("#neuLage").hidden = true; $("#neuBtn").focus(); }
+
+$("#neuBtn").addEventListener("click", neuOeffnen);
+$("#neuZu").addEventListener("click", neuSchliessen);
+$("#neuLage").addEventListener("click", e => { if (e.target.id === "neuLage") neuSchliessen(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#neuLage").hidden) neuSchliessen();
+});
 
 let toastTimer = null;
 function toast(msg){
@@ -979,7 +1140,7 @@ async function loadPlan(){
     sb.from("households").select("*").eq("id", hid).single(),
     sb.from("categories").select("*").eq("household_id", hid).order("position"),
     sb.from("plan_items").select("*").eq("household_id", hid),
-    sb.from("household_members").select("user_id, joined_at").eq("household_id", hid)
+    sb.from("household_members").select("*").eq("household_id", hid)
   ]);
   if (hh.error) throw hh.error;
   if (cats.error) throw cats.error;
@@ -1004,7 +1165,14 @@ async function loadPlan(){
   state.monatsbudgetReady = ("monthly_budget" in hh.data);
   // Fremde E-Mail-Adressen sind bewusst nicht abfragbar — auth.users ist nicht
   // freigegeben. Wir zeigen daher die eigene Adresse und die reine Anzahl.
-  if (!mem.error) state.members = mem.data || [];
+  if (!mem.error){
+    state.members = mem.data || [];
+    // Welcher Name aus households.people gehoert zu diesem Konto? Fehlt die
+    // Spalte noch, bleibt meReady false und das Feld verhaelt sich wie bisher.
+    const meineZeile = state.members.find(m => m.user_id === (user||{}).id);
+    state.meReady = !!meineZeile && ("person" in meineZeile);
+    state.meName  = (meineZeile && meineZeile.person) || "";
+  }
 }
 
 async function loadMonth(ym){
@@ -1671,9 +1839,13 @@ function renderSettings(){
 }
 
 function fillCatSelects(){
-  const opts = state.plan.categories.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
+  // Alphabetisch, nicht in Anlegereihenfolge: beim Eintragen sucht man einen
+  // Namen, und den findet man in einer sortierten Liste ohne Lesen.
+  const sortiert = state.plan.categories.slice()
+    .sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
+  const opts = sortiert.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
   const addOpt = '<option value="__new__">+ Neue Kategorie…</option>';
-  const ersteKategorie = (state.plan.categories[0] || {}).id || "";
+  const ersteKategorie = (sortiert[0] || {}).id || "";
   [["#eCat","",true],["#xCat","",true],["#fCat",'<option value="">Alle Kategorien</option>',false]].forEach(([sel,lead,withAdd]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
@@ -1701,6 +1873,29 @@ function fillPersonSelects(){
     el.innerHTML = lead + ppl.map(p => '<option value="' + esc(p) + '">' + esc(p) + "</option>").join("");
     if (keep && Array.from(el.options).some(o=>o.value===keep)) el.value = keep;
   });
+  fuelleIchBin();
+}
+
+// "Ich bin" in den Einstellungen: ordnet dieses Konto einem der Namen zu.
+// Steht die Zuordnung, fuellt das Ausgabenformular "wer hat gezahlt" selbst
+// aus — man waehlt es nur noch, wenn ausnahmsweise jemand anders gezahlt hat.
+function fuelleIchBin(){
+  const el = $("#meSelect"), wrap = $("#meWrap");
+  if (!el || !wrap) return;
+  const ppl = state.plan.people;
+  wrap.hidden = ppl.length === 0;
+  el.innerHTML = '<option value="">— noch nicht zugeordnet —</option>' +
+    ppl.map(p => '<option value="' + esc(p) + '">' + esc(p) + "</option>").join("");
+  el.value = ppl.includes(state.meName) ? state.meName : "";
+  el.disabled = !state.meReady;
+  $("#meHinweis").hidden = state.meReady;
+}
+
+// Vorauswahl beim Eintragen: der eigene Name, sofern zugeordnet.
+function personVorwaehlen(){
+  const el = $("#ePerson");
+  if (!el || !state.meName) return;
+  if (Array.from(el.options).some(o => o.value === state.meName)) el.value = state.meName;
 }
 
 // Kategorie direkt aus der Ausgaben- oder Fixkosten-Auswahl anlegen, ohne
@@ -1802,10 +1997,24 @@ function resetExpForm(){
   state.editEntry = null;
   $("#expForm").reset();
   $("#eDate").value = (state.ym === heuteYm()) ? todayISO() : monthStart(state.ym);
+  personVorwaehlen();
+  $("#eMehr").open = false;
   $("#expFormTitle").textContent = "Neue Ausgabe";
   $("#eSubmit").textContent = "Eintragen";
   $("#eCancel").hidden = true;
 }
+
+// Zuordnung des eigenen Kontos speichern. Betrifft nur die eigene Zeile —
+// die Regel in schema.sql lässt keine fremde zu.
+$("#meSelect").addEventListener("change", async e => {
+  const name = e.target.value || null;
+  const r = await sb.from("household_members").update({ person: name })
+    .eq("household_id", state.household.id).eq("user_id", user.id);
+  if (r.error){ toast("Konnte nicht gespeichert werden"); e.target.value = state.meName; return; }
+  state.meName = name || "";
+  personVorwaehlen();
+  toast(name ? "Du bist " + name : "Zuordnung entfernt");
+});
 $("#expForm").addEventListener("submit", async e => {
   e.preventDefault();
   const a = parseAmount($("#eAmount").value);

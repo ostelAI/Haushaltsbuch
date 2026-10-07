@@ -319,3 +319,15 @@ alter table public.household_members add column if not exists person text;
 drop policy if exists members_update on public.household_members;
 create policy members_update on public.household_members
   for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ------------------------------- Nachtrag: Kategorie nur wo sie hingehört --
+-- verwendung: in welchem Formular die Kategorie zur Auswahl steht.
+--   beide    = überall (Standard, ändert für bestehende Kategorien nichts)
+--   taeglich = nur bei den täglichen Ausgaben
+--   fix      = nur bei den Fixkosten
+-- Gedacht gegen überladene Auswahllisten: Kfz-Steuer und Versicherungen
+-- braucht man beim Eintragen des Wocheneinkaufs nicht. Die Kategorie bleibt
+-- bestehen, nur die Auswahlliste wird kürzer — vorhandene Einträge sind nie
+-- betroffen.
+alter table public.categories add column if not exists verwendung text not null default 'beide'
+  check (verwendung in ('beide','taeglich','fix'));

@@ -376,6 +376,9 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .catrow .swatches{grid-column:1/-1}
 .catpanel{grid-column:1/-1;margin-top:6px;display:grid;gap:10px}
 .catbudgetform{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.catvw{font-size:10.5px;font-weight:600;color:var(--ink-3);border:1px solid var(--line-strong);
+  border-radius:999px;padding:1px 7px;margin-left:5px;vertical-align:1px}
+.catvwfeld{margin-top:10px}
 .catbudget{font-weight:400;font-size:12px;color:var(--ink-3);margin-left:6px}
 .catsort{display:flex;gap:0}
 .icon-btn.move{font-size:10px;padding:5px 5px}
@@ -866,7 +869,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.00";
+const APP_VERSION = "1.3.01";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -882,6 +885,11 @@ const LS_GESEHEN = "haushaltsbuch.gesehen";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.3.01", d: "2026-10-07", punkte: [
+      "Kategorien lassen sich jetzt trennen: In den Einstellungen legst du je Kategorie fest, ob sie bei täglichen Ausgaben, bei Fixkosten oder überall auswählbar ist.",
+      "Damit stehen Steuer und Versicherungen nicht mehr in der Liste, wenn du den Wocheneinkauf einträgst.",
+      "Bestehende Einträge behalten ihre Kategorie, auch wenn sie dort inzwischen ausgeblendet ist."
+    ]},
   { v: "1.3.00", d: "2026-10-07", punkte: [
       "Kategorien stehen beim Eintragen jetzt alphabetisch — Namen findet man ohne Suchen.",
       "Neue Reihenfolge im Formular: erst Betrag, dann Kategorie, dann „Wofür“ (optional).",
@@ -912,6 +920,7 @@ const state = {
   plan: { categories: [], people: [], income: {}, fixed: {}, goal: 0 },
   meName: "",             // welcher Name aus plan.people zu diesem Konto gehört
   meReady: false,         // hat die Datenbank die Spalte household_members.person?
+  verwendungReady: false, // hat die Datenbank die Spalte categories.verwendung?
   ym: ymOf(new Date()),   // wird nach dem Laden auf den Abrechnungsmonat gesetzt
   entries: {},
   tab: "overview",
@@ -1116,7 +1125,8 @@ function rowsToPlan(hh, cats, items){
   plan.budget = Number(hh.monthly_budget) || 0;
   plan.people = Array.isArray(hh.people) ? hh.people.slice() : [];
   plan.categories = (cats||[]).map((c,i) => ({ id: c.id, name: c.name, ci: Number(c.color_index)||0,
-                                                budget: Number(c.budget)||0, pos: Number(c.position) }));
+                                                budget: Number(c.budget)||0, pos: Number(c.position),
+                                                vw: c.verwendung || "beide" }));
   (items||[]).forEach(it => {
     const base = { name: it.name, amount: Number(it.amount)||0, from: it.valid_from || "", to: it.valid_to || "",
                     every: Number(it.interval_months)||1, anchorMonth: Number(it.anchor_month)||1 };
@@ -1157,7 +1167,10 @@ async function loadPlan(){
 
   // Verfügt die Datenbank schon über die neueren Spalten?
   const ersteKategorie = (cats.data || [])[0];
-  if (ersteKategorie) state.budgetReady = ("budget" in ersteKategorie);
+  if (ersteKategorie){
+    state.budgetReady = ("budget" in ersteKategorie);
+    state.verwendungReady = ("verwendung" in ersteKategorie);
+  }
   // Nicht auf state.household schreiben: das Objekt kommt aus der Antwort und
   // würde beim nächsten Laden vortäuschen, die Spalte sei vorhanden.
   // startTag() fällt bei fehlendem Wert ohnehin auf 1 zurück.
@@ -1790,7 +1803,9 @@ function renderSettings(){
     return '<div class="catrow' + (offen ? " offen" : "") + '">' +
       '<button class="chipbtn" type="button" data-catpick="' + c.id + '" aria-expanded="' + offen + '" ' +
         'aria-label="Farbe und Budget von ' + esc(c.name) + ' ändern" style="background:' + catColor(c) + '"></button>' +
-      "<b>" + esc(c.name) + (budgetText ? ' <span class="catbudget num">' + esc(budgetText) + "</span>" : "") + "</b>" +
+      "<b>" + esc(c.name) + (budgetText ? ' <span class="catbudget num">' + esc(budgetText) + "</span>" : "") +
+        (c.vw === "taeglich" ? ' <span class="catvw">täglich</span>'
+         : c.vw === "fix"    ? ' <span class="catvw">fix</span>' : "") + "</b>" +
       '<span class="catsort">' +
         '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':-1" aria-label="' + esc(c.name) + ' nach oben"' + (i===0?" disabled":"") + ">&#9650;</button>" +
         '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':1" aria-label="' + esc(c.name) + ' nach unten"' + (i===cats.length-1?" disabled":"") + ">&#9660;</button>" +
@@ -1799,6 +1814,14 @@ function renderSettings(){
       (offen ? '<div class="catpanel">' +
         '<div class="swatches">' + CAT_VARS.map((v,ci) =>
           '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" +
+        (state.verwendungReady
+          ? '<label class="f catvwfeld"><span>Auswählbar bei</span>' +
+              '<select data-catvw="' + c.id + '">' +
+                '<option value="beide"' + (c.vw==="beide"?" selected":"") + ">täglichen Ausgaben und Fixkosten</option>" +
+                '<option value="taeglich"' + (c.vw==="taeglich"?" selected":"") + ">nur täglichen Ausgaben</option>" +
+                '<option value="fix"' + (c.vw==="fix"?" selected":"") + ">nur Fixkosten</option>" +
+              "</select></label>"
+          : "") +
         (state.budgetReady
           ? '<form class="form catbudgetform" data-catbudget="' + c.id + '">' +
               '<label class="f"><span>Monatsbudget (0 = keins)</span>' +
@@ -1843,13 +1866,31 @@ function fillCatSelects(){
   // Namen, und den findet man in einer sortierten Liste ohne Lesen.
   const sortiert = state.plan.categories.slice()
     .sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
-  const opts = sortiert.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
   const addOpt = '<option value="__new__">+ Neue Kategorie…</option>';
-  const ersteKategorie = (sortiert[0] || {}).id || "";
-  [["#eCat","",true],["#xCat","",true],["#fCat",'<option value="">Alle Kategorien</option>',false]].forEach(([sel,lead,withAdd]) => {
+  // Welche Kategorie gehört in welches Formular? Der Filter über den
+  // bestehenden Ausgaben zeigt immer alle — dort sucht man Vergangenes.
+  const passt = (c, wo) => wo === "alle" || c.vw === "beide" || c.vw === wo;
+  // Eine ausgeblendete Kategorie muss trotzdem in der Liste stehen, wenn sie
+  // gerade ausgewählt ist oder zum bearbeiteten Eintrag gehört — sonst springt
+  // der Eintrag beim Speichern still auf eine andere Kategorie um.
+  const optionen = (wo, ...pflicht) => {
+    const liste = sortiert.filter(c => passt(c, wo));
+    pflicht.forEach(id => {
+      if (!id || id === "__new__" || liste.some(c => c.id === id)) return;
+      const c = sortiert.find(x => x.id === id);
+      if (c) liste.push(c);
+    });
+    liste.sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
+    return liste.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + "</option>").join("");
+  };
+  const ersteKategorie = (sortiert.filter(c => passt(c, "taeglich"))[0] || sortiert[0] || {}).id || "";
+  // Wird gerade ein Eintrag bearbeitet, gehört dessen Kategorie in die Liste,
+  // auch wenn sie dort sonst ausgeblendet wäre.
+  const bearbeitet = ((state.editEntry && state.entries[state.editEntry]) || {}).c || "";
+  [["#eCat","",true,"taeglich"],["#xCat","",true,"fix"],["#fCat",'<option value="">Alle Kategorien</option>',false,"alle"]].forEach(([sel,lead,withAdd,wo]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
-    el.innerHTML = lead + opts + (withAdd ? addOpt : "");
+    el.innerHTML = lead + optionen(wo, keep, sel === "#eCat" ? bearbeitet : "") + (withAdd ? addOpt : "");
     // "__new__" ist ein Befehl, keine Kategorie. Beim ersten Rendern sind die
     // Kategorien noch nicht geladen — dann wäre es der einzige und damit
     // ausgewählte Eintrag und würde beim Nachladen als Auswahl überleben.
@@ -2043,13 +2084,20 @@ $("#expList").addEventListener("click", async e => {
   } else if (ed){
     const id = ed.dataset.edit, en = state.entries[id]; if (!en) return;
     state.editEntry = id;
+    // Erst neu aufbauen, dann die Werte setzen: sonst liefe die Zuweisung an
+    // eine Auswahlliste, die die Kategorie des Eintrags noch gar nicht enthält,
+    // und der Eintrag spränge beim Speichern still auf eine andere Kategorie.
+    render();
     $("#eAmount").value = nf.format(en.a); $("#eNote").value = en.n || "";
     $("#eCat").value = en.c; $("#eDate").value = en.d; $("#ePerson").value = en.p || "";
+    // Datum oder Person weichen vom Üblichen ab? Dann aufgeklappt zeigen,
+    // sonst sieht man beim Bearbeiten nicht, was dort steht.
+    $("#eMehr").open = true;
     $("#expFormTitle").textContent = "Eintrag bearbeiten";
     $("#eSubmit").textContent = "Speichern";
     $("#eCancel").hidden = false;
     window.scrollTo({top:0, behavior:"smooth"});
-    render(); $("#eAmount").focus();
+    $("#eAmount").focus();
   }
 });
 $("#fCat").addEventListener("change", renderDaily);
@@ -2231,6 +2279,23 @@ $("#catList").addEventListener("submit", async e => {
     state.catColorOpen = null;
     await reloadPlanAndRender();
     toast(betrag > 0 ? "Budget: " + eur(betrag) + " pro Monat" : "Budget entfernt");
+  }
+});
+
+// Verwendung einer Kategorie ändern. Bestehende Einträge bleiben, wie sie
+// sind — nur die Auswahllisten werden kürzer.
+$("#catList").addEventListener("change", async e => {
+  const el = e.target.closest("[data-catvw]");
+  if (!el) return;
+  const id = el.dataset.catvw, wert = el.value;
+  if (await guard(() => sb.from("categories").update({ verwendung: wert }).eq("id", id))){
+    const c = state.plan.categories.find(x => x.id === id);
+    if (c) c.vw = wert;
+    fillCatSelects();
+    renderSettings();
+    toast(wert === "beide" ? "Überall auswählbar"
+        : wert === "taeglich" ? "Nur noch bei täglichen Ausgaben"
+        : "Nur noch bei Fixkosten");
   }
 });
 

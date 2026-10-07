@@ -376,9 +376,11 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 .catrow .swatches{grid-column:1/-1}
 .catpanel{grid-column:1/-1;margin-top:6px;display:grid;gap:10px}
 .catbudgetform{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
-.catvw{font-size:10.5px;font-weight:600;color:var(--ink-3);border:1px solid var(--line-strong);
-  border-radius:999px;padding:1px 7px;margin-left:5px;vertical-align:1px}
-.catvwfeld{margin-top:10px}
+.catvwzeile{grid-column:2/-1;display:flex;align-items:center;gap:7px;margin-top:5px;min-width:0}
+.catvwzeile>span{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.catvwzeile>select{flex:1;min-width:0;font-size:12px;padding:4px 8px;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line-strong);border-radius:7px}
+.catvwzeile>select:hover{color:var(--ink)}
 .catbudget{font-weight:400;font-size:12px;color:var(--ink-3);margin-left:6px}
 .catsort{display:flex;gap:0}
 .icon-btn.move{font-size:10px;padding:5px 5px}
@@ -869,7 +871,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.01";
+const APP_VERSION = "1.3.02";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -885,6 +887,10 @@ const LS_GESEHEN = "haushaltsbuch.gesehen";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.3.02", d: "2026-10-07", punkte: [
+      "„zeigen bei“ steht jetzt direkt in jeder Kategoriezeile der Einstellungen, statt hinter dem Farbquadrat versteckt — so geht man die Liste einmal von oben nach unten durch.",
+      "Eine Kategorie, die auf „nur Fixkosten“ steht, verschwand bisher nicht aus der Tagesliste, wenn sie dort gerade ausgewählt war. Behoben."
+    ]},
   { v: "1.3.01", d: "2026-10-07", punkte: [
       "Kategorien lassen sich jetzt trennen: In den Einstellungen legst du je Kategorie fest, ob sie bei täglichen Ausgaben, bei Fixkosten oder überall auswählbar ist.",
       "Damit stehen Steuer und Versicherungen nicht mehr in der Liste, wenn du den Wocheneinkauf einträgst.",
@@ -1803,25 +1809,25 @@ function renderSettings(){
     return '<div class="catrow' + (offen ? " offen" : "") + '">' +
       '<button class="chipbtn" type="button" data-catpick="' + c.id + '" aria-expanded="' + offen + '" ' +
         'aria-label="Farbe und Budget von ' + esc(c.name) + ' ändern" style="background:' + catColor(c) + '"></button>' +
-      "<b>" + esc(c.name) + (budgetText ? ' <span class="catbudget num">' + esc(budgetText) + "</span>" : "") +
-        (c.vw === "taeglich" ? ' <span class="catvw">täglich</span>'
-         : c.vw === "fix"    ? ' <span class="catvw">fix</span>' : "") + "</b>" +
+      "<b>" + esc(c.name) + (budgetText ? ' <span class="catbudget num">' + esc(budgetText) + "</span>" : "") + "</b>" +
       '<span class="catsort">' +
         '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':-1" aria-label="' + esc(c.name) + ' nach oben"' + (i===0?" disabled":"") + ">&#9650;</button>" +
         '<button class="icon-btn move" type="button" data-catmove="' + c.id + ':1" aria-label="' + esc(c.name) + ' nach unten"' + (i===cats.length-1?" disabled":"") + ">&#9660;</button>" +
       "</span>" +
       '<button class="icon-btn" type="button" data-catdel="' + c.id + '" aria-label="Kategorie löschen"' + (cats.length<=1?" disabled":"") + ">&#10005;</button>" +
+      // Direkt in der Zeile statt im Aufklappfeld: man geht die Liste einmal
+      // von oben nach unten durch, ohne jede Kategorie einzeln aufzuklappen.
+      (state.verwendungReady
+        ? '<label class="catvwzeile"><span>zeigen bei</span>' +
+            '<select data-catvw="' + esc(c.id) + '" aria-label="Wo ist ' + esc(c.name) + ' auswählbar">' +
+              '<option value="beide"' + (c.vw==="beide"?" selected":"") + ">täglichen Ausgaben und Fixkosten</option>" +
+              '<option value="taeglich"' + (c.vw==="taeglich"?" selected":"") + ">nur täglichen Ausgaben</option>" +
+              '<option value="fix"' + (c.vw==="fix"?" selected":"") + ">nur Fixkosten</option>" +
+            "</select></label>"
+        : "") +
       (offen ? '<div class="catpanel">' +
         '<div class="swatches">' + CAT_VARS.map((v,ci) =>
           '<button class="sw" type="button" data-catcolor="' + c.id + ":" + ci + '" aria-pressed="' + (c.ci===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("") + "</div>" +
-        (state.verwendungReady
-          ? '<label class="f catvwfeld"><span>Auswählbar bei</span>' +
-              '<select data-catvw="' + c.id + '">' +
-                '<option value="beide"' + (c.vw==="beide"?" selected":"") + ">täglichen Ausgaben und Fixkosten</option>" +
-                '<option value="taeglich"' + (c.vw==="taeglich"?" selected":"") + ">nur täglichen Ausgaben</option>" +
-                '<option value="fix"' + (c.vw==="fix"?" selected":"") + ">nur Fixkosten</option>" +
-              "</select></label>"
-          : "") +
         (state.budgetReady
           ? '<form class="form catbudgetform" data-catbudget="' + c.id + '">' +
               '<label class="f"><span>Monatsbudget (0 = keins)</span>' +
@@ -1870,9 +1876,11 @@ function fillCatSelects(){
   // Welche Kategorie gehört in welches Formular? Der Filter über den
   // bestehenden Ausgaben zeigt immer alle — dort sucht man Vergangenes.
   const passt = (c, wo) => wo === "alle" || c.vw === "beide" || c.vw === wo;
-  // Eine ausgeblendete Kategorie muss trotzdem in der Liste stehen, wenn sie
-  // gerade ausgewählt ist oder zum bearbeiteten Eintrag gehört — sonst springt
-  // der Eintrag beim Speichern still auf eine andere Kategorie um.
+  // Eine ausgeblendete Kategorie muss nur dann in der Liste stehen, wenn ein
+  // bestehender Eintrag sie benutzt und gerade bearbeitet wird — sonst spränge
+  // er beim Speichern still auf eine andere Kategorie um. Die bloß gerade
+  // ausgewählte Kategorie wird NICHT festgehalten: beim leeren Formular soll
+  // eine gerade ausgeblendete Kategorie auch wirklich verschwinden.
   const optionen = (wo, ...pflicht) => {
     const liste = sortiert.filter(c => passt(c, wo));
     pflicht.forEach(id => {
@@ -1890,7 +1898,7 @@ function fillCatSelects(){
   [["#eCat","",true,"taeglich"],["#xCat","",true,"fix"],["#fCat",'<option value="">Alle Kategorien</option>',false,"alle"]].forEach(([sel,lead,withAdd,wo]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
-    el.innerHTML = lead + optionen(wo, keep, sel === "#eCat" ? bearbeitet : "") + (withAdd ? addOpt : "");
+    el.innerHTML = lead + optionen(wo, sel === "#eCat" ? bearbeitet : "") + (withAdd ? addOpt : "");
     // "__new__" ist ein Befehl, keine Kategorie. Beim ersten Rendern sind die
     // Kategorien noch nicht geladen — dann wäre es der einzige und damit
     // ausgewählte Eintrag und würde beim Nachladen als Auswahl überleben.
@@ -2292,7 +2300,6 @@ $("#catList").addEventListener("change", async e => {
     const c = state.plan.categories.find(x => x.id === id);
     if (c) c.vw = wert;
     fillCatSelects();
-    renderSettings();
     toast(wert === "beide" ? "Überall auswählbar"
         : wert === "taeglich" ? "Nur noch bei täglichen Ausgaben"
         : "Nur noch bei Fixkosten");

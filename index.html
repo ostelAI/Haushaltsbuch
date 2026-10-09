@@ -873,7 +873,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.03";
+const APP_VERSION = "1.3.04";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -889,6 +889,10 @@ const LS_GESEHEN = "haushaltsbuch.gesehen";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.3.04", d: "2026-10-10", punkte: [
+      "Die Prognose rechnet jetzt gegen euer monatliches Budget: Sie zeigt, wie viel davon am Monatsende übrig bleibt (oder fehlt), wenn ihr im aktuellen Tempo weiter ausgebt.",
+      "Ohne gesetztes Monatsbudget rechnet sie wie bisher mit dem, was nach Fixkosten und Sparziel bleibt."
+    ]},
   { v: "1.3.03", d: "2026-10-10", punkte: [
       "Die Kachel „Tagesbudget geplant“ zeigt jetzt die Prognose fürs Monatsende — mit kleiner Verlaufskurve: bisher durchgezogen, Prognose gestrichelt.",
       "Die Prognose rechnet sich bei jeder neuen Ausgabe neu. Am Monatsanfang stützt sie sich stärker auf die drei Vormonate, danach immer mehr auf den laufenden Monat.",
@@ -1506,7 +1510,10 @@ function forecastModel(ym){
   const N = tageImZeitraum(ym), cur = heuteYm();
   const elapsed = ym < cur ? N : ym > cur ? 0 : Math.min(N, Math.max(1, tagIndex(ym, todayISO()) + 1));
   const s = monthStats(ym, state.entries);
-  const startVal = s.income - s.fixed - s.goal;
+  // Basis ist das Monatsbudget für variable Ausgaben. Ist keines gesetzt,
+  // rechnen wir mit dem, was nach Fixkosten und Sparziel übrig ist.
+  const budget = state.monatsbudgetReady ? (Number(state.plan.budget) || 0) : 0;
+  const startVal = budget > 0 ? budget : s.income - s.fixed - s.goal;
 
   // Vormonate
   const hist = (state.hist && state.hist.for === ym) ? state.hist.months : {};
@@ -1562,7 +1569,7 @@ function forecastModel(ym){
     for (let i = 0; i < Math.min(n, N); i++){ c += t[i]; vormonat.push(startVal - c); }
   }
 
-  return { N, elapsed, rest, startVal, ist, prog, band, rate, curRate, histRate, w, sd,
+  return { N, elapsed, rest, startVal, budget, ist, prog, band, rate, curRate, histRate, w, sd,
            ende: prog[prog.length - 1], schwelle, grossSumme, grossAnzahl, vormonat,
            unsicher: band.length ? (band[band.length-1][1] - band[band.length-1][0]) / 2 : 0 };
 }
@@ -1578,10 +1585,10 @@ function prognoseKpi(){
   const f = forecastModel(ym);
   const farbe = f.ende >= 0 ? "var(--pos)" : "var(--neg)";
   const sub = f.rest > 0
-    ? "Monatsende · ca. " + eurShort(f.rate) + "/Tag"
-    : "Endstand des Monats";
+    ? (f.budget > 0 ? "vom Budget " + eurShort(f.budget) + " · ca. " : "Monatsende · ca. ") + eurShort(f.rate) + "/Tag"
+    : (f.budget > 0 ? "vom Budget " + eurShort(f.budget) + " übrig" : "Endstand des Monats");
   const tip = f.grossAnzahl ? ' title="Große Einzelausgaben (' + esc(eurShort(f.grossSumme)) + ') zählen mit, werden aber nicht hochgerechnet."' : "";
-  return '<div class="kpi k-day"' + tip + '><div class="eyebrow">Prognose</div>' +
+  return '<div class="kpi k-day"' + tip + '><div class="eyebrow">' + (f.budget > 0 ? "Prognose Budget" : "Prognose") + '</div>' +
     '<div class="v num" style="color:' + farbe + '">' + esc(eurSigned(f.ende)) + "</div>" +
     miniForecast(f, farbe) +
     '<div class="sub">' + esc(sub) + "</div></div>";

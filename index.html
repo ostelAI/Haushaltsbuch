@@ -187,6 +187,7 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .kpi .sub{font-size:12px;color:var(--ink-3)}
 .kpi.k-in .v{color:var(--pos)}
 .kpi.k-day .v{color:var(--accent)}
+.fc-mini{display:block;width:100%;height:34px;margin:2px 0 1px;overflow:visible}
 .kpibar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:1px 0 2px}
 .kpibar i{display:block;height:100%;border-radius:3px;min-width:2px}
 
@@ -549,6 +550,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 
     <div class="kpis" id="kpis"></div>
 
+
     <div class="split two">
       <div class="card">
         <div class="card-h"><h2>Wohin das Geld geht</h2><span class="eyebrow" id="brkTotal"></span></div>
@@ -871,7 +873,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.02";
+const APP_VERSION = "1.3.03";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -887,6 +889,11 @@ const LS_GESEHEN = "haushaltsbuch.gesehen";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.3.03", d: "2026-10-10", punkte: [
+      "Die Kachel „Tagesbudget geplant“ zeigt jetzt die Prognose fürs Monatsende — mit kleiner Verlaufskurve: bisher durchgezogen, Prognose gestrichelt.",
+      "Die Prognose rechnet sich bei jeder neuen Ausgabe neu. Am Monatsanfang stützt sie sich stärker auf die drei Vormonate, danach immer mehr auf den laufenden Monat.",
+      "Große Einzelausgaben zählen mit, werden aber nicht auf den Rest des Monats hochgerechnet."
+    ]},
   { v: "1.3.02", d: "2026-10-07", punkte: [
       "„zeigen bei“ steht jetzt direkt in jeder Kategoriezeile der Einstellungen, statt hinter dem Farbquadrat versteckt — so geht man die Liste einmal von oben nach unten durch.",
       "Eine Kategorie, die auf „nur Fixkosten“ steht, verschwand bisher nicht aus der Tagesliste, wenn sie dort gerade ausgewählt war. Behoben."
@@ -943,6 +950,8 @@ const state = {
   , budgetReady: true   // kennt die Datenbank die Budget-Spalte schon?
   , periodReady: true   // kennt die Datenbank den Abrechnungszeitraum schon?
   , monatsbudgetReady: true  // kennt sie das Monatsbudget schon?
+  , hist: null          // Ausgaben der drei Vormonate für die Prognose
+  , histLaedt: null
 };
 
 let sb = null, user = null, channel = null;
@@ -1427,12 +1436,11 @@ function renderOverview(){
   $("#heroBar").innerHTML = segs.map(x => '<i class="' + x.c + '" style="width:' + pct(x.v).toFixed(2) + '%" title="' + x.n + ": " + eur(x.v) + '"></i>').join("");
   $("#heroKey").innerHTML = segs.map(x => '<span><i class="' + x.c + '"></i>' + x.n + " " + eur(x.v) + "</span>").join("");
 
-  const perDayPlan = s.income > 0 ? (s.income - s.fixed - s.goal) / tageImZeitraum(state.ym) : 0;
   $("#kpis").innerHTML = [
     kpi("k-in",  "Einnahmen",           eur(s.income),   Object.keys(state.plan.income).length + " Posten"),
     kpi("k-fix", "Feste Kosten",        eur(s.fixed),    Object.keys(state.plan.fixed).length + " Posten"),
     varKpi(s),
-    kpi("k-day", "Tagesbudget geplant", eur(perDayPlan), "im Schnitt pro Tag")
+    prognoseKpi()
   ].join("");
 
   renderBreakdown();
@@ -1461,6 +1469,149 @@ function varKpi(s){
     : eur(-rest) + " über dem Budget von " + eur(budget);
   return kpi("k-var", "Monatliches Budget", eur(s.variable), sub, farbe, balken);
 }
+
+/* ---------------------------- Prognose ----------------------------
+   Hochrechnung der variablen Ausgaben bis Monatsende. Feste Kosten und
+   Sparziel stehen ohnehin fest und sind schon abgezogen; unsicher ist nur,
+   was täglich noch dazukommt.
+   - Tempo = Mischung aus aktuellem Monat und den drei Vormonaten. Am Anfang
+     zählen die Vormonate mehr, mit jedem Tag rückt der aktuelle Monat nach
+     vorn (Gewicht Tage/(Tage+5)).
+   - Einzelne große Ausgaben (über der Ausreißer-Schwelle) zählen voll, werden
+     aber nicht auf die restlichen Tage hochgerechnet.
+   - Der Korridor zeigt die übliche Schwankung (ca. 80 %) und wird zum
+     Monatsende hin schmaler. */
+async function loadHistory(ym){
+  const von = ymShift(ym, -3), bis = ymShift(ym, -1);
+  try{
+    const r = await sb.from("expenses").select("spent_on,amount")
+      .eq("household_id", state.household.id)
+      .gte("spent_on", monthStart(von)).lte("spent_on", monthEnd(bis));
+    if (r.error) throw r.error;
+    const months = {};
+    (r.data||[]).forEach(row => {
+      const m = ymOfDate(row.spent_on);
+      (months[m] = months[m] || []).push({ d: row.spent_on, a: Number(row.amount)||0 });
+    });
+    state.hist = { for: ym, months: months };
+  }catch(e){
+    state.hist = { for: ym, months: {}, failed: true };
+  }
+}
+function tagIndex(ym, datum){
+  const a = new Date(monthStart(ym) + "T00:00:00"), b = new Date(String(datum).slice(0,10) + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+function forecastModel(ym){
+  const N = tageImZeitraum(ym), cur = heuteYm();
+  const elapsed = ym < cur ? N : ym > cur ? 0 : Math.min(N, Math.max(1, tagIndex(ym, todayISO()) + 1));
+  const s = monthStats(ym, state.entries);
+  const startVal = s.income - s.fixed - s.goal;
+
+  // Vormonate
+  const hist = (state.hist && state.hist.for === ym) ? state.hist.months : {};
+  let histSum = 0, histDays = 0; const histDaily = [];
+  [1,2,3].forEach(k => {
+    const m = ymShift(ym, -k), list = hist[m];
+    if (!list || !list.length) return;
+    const n = tageImZeitraum(m), tage = new Array(n).fill(0);
+    list.forEach(x => { const i = tagIndex(m, x.d); if (i >= 0 && i < n) tage[i] += x.a; });
+    histSum += tage.reduce((a,b)=>a+b,0); histDays += n;
+    histDaily.push.apply(histDaily, tage);
+  });
+  const histRate = histDays ? histSum / histDays : null;
+  const schwelle = histRate != null ? Math.max(200, histRate * 10) : 300;
+
+  // aktueller Monat, Tag für Tag
+  const tage = new Array(N).fill(0), normal = new Array(N).fill(0);
+  let grossSumme = 0, grossAnzahl = 0;
+  Object.values(state.entries).forEach(e => {
+    const i = Math.min(N-1, Math.max(0, tagIndex(ym, e.d))), a = Number(e.a)||0;
+    tage[i] += a;
+    if (a > schwelle){ grossSumme += a; grossAnzahl++; } else normal[i] += a;
+  });
+  const curRate = elapsed > 0 ? normal.slice(0, elapsed).reduce((a,b)=>a+b,0) / elapsed : 0;
+  const w = histRate == null ? 1 : elapsed / (elapsed + 5);
+  const rate = elapsed > 0 ? (w * curRate + (1 - w) * (histRate || 0)) : (histRate || 0);
+
+  // Schwankung pro Tag
+  const stichprobe = normal.slice(0, elapsed).concat(histDaily.map(v => Math.min(v, schwelle)));
+  let sd = 0;
+  if (stichprobe.length > 1){
+    const mu = stichprobe.reduce((a,b)=>a+b,0) / stichprobe.length;
+    sd = Math.sqrt(stichprobe.reduce((a,b)=>a+(b-mu)*(b-mu),0) / (stichprobe.length - 1));
+  }
+
+  // Verlauf "noch verfügbar": Punkt k = Stand nach k Tagen
+  const ist = [startVal]; let cum = 0;
+  for (let i = 0; i < elapsed; i++){ cum += tage[i]; ist.push(startVal - cum); }
+  const jetzt = ist[ist.length - 1], rest = N - elapsed;
+  const prog = [], band = [];
+  for (let k = 0; k <= rest; k++){
+    const v = jetzt - rate * k, h = 1.28 * sd * Math.sqrt(k);
+    prog.push(v); band.push([v - h, v + h]);
+  }
+
+  // Vormonat zum Vergleich: gleiches Startniveau, dessen Ausgabetempo
+  let vormonat = null;
+  const vm = ymShift(ym, -1);
+  if (hist[vm] && hist[vm].length){
+    const n = tageImZeitraum(vm), t = new Array(n).fill(0);
+    hist[vm].forEach(x => { const i = tagIndex(vm, x.d); if (i >= 0 && i < n) t[i] += x.a; });
+    vormonat = [startVal]; let c = 0;
+    for (let i = 0; i < Math.min(n, N); i++){ c += t[i]; vormonat.push(startVal - c); }
+  }
+
+  return { N, elapsed, rest, startVal, ist, prog, band, rate, curRate, histRate, w, sd,
+           ende: prog[prog.length - 1], schwelle, grossSumme, grossAnzahl, vormonat,
+           unsicher: band.length ? (band[band.length-1][1] - band[band.length-1][0]) / 2 : 0 };
+}
+
+function prognoseKpi(){
+  const ym = state.ym;
+  if (!state.hist || state.hist.for !== ym){
+    if (state.histLaedt !== ym){
+      state.histLaedt = ym;
+      loadHistory(ym).then(() => { state.histLaedt = null; if (state.tab === "overview" && state.ym === ym) renderOverview(); });
+    }
+  }
+  const f = forecastModel(ym);
+  const farbe = f.ende >= 0 ? "var(--pos)" : "var(--neg)";
+  const sub = f.rest > 0
+    ? "Monatsende · ca. " + eurShort(f.rate) + "/Tag"
+    : "Endstand des Monats";
+  const tip = f.grossAnzahl ? ' title="Große Einzelausgaben (' + esc(eurShort(f.grossSumme)) + ') zählen mit, werden aber nicht hochgerechnet."' : "";
+  return '<div class="kpi k-day"' + tip + '><div class="eyebrow">Prognose</div>' +
+    '<div class="v num" style="color:' + farbe + '">' + esc(eurSigned(f.ende)) + "</div>" +
+    miniForecast(f, farbe) +
+    '<div class="sub">' + esc(sub) + "</div></div>";
+}
+
+// Kleine Verlaufskurve für die Kachel: bisher durchgezogen, Prognose gestrichelt,
+// übliche Spanne als Fläche, Nulllinie gepunktet. Ohne Achsen.
+function miniForecast(f, farbe){
+  const W = 200, H = 34, P = 3;
+  let werte = f.ist.concat(f.prog, [0]);
+  f.band.forEach(b => werte.push(b[0], b[1]));
+  let lo = Math.min.apply(null, werte), hi = Math.max.apply(null, werte);
+  if (hi - lo < 1){ hi += 1; lo -= 1; }
+  const x = k => (k / f.N) * W;
+  const y = v => P + (1 - (v - lo) / (hi - lo)) * (H - 2 * P);
+  const pfad = (arr, start) => arr.map((v,i) => (i ? "L" : "M") + x(start + i).toFixed(1) + " " + y(v).toFixed(1)).join("");
+  const e = f.elapsed;
+  let svg = '<svg class="fc-mini" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">';
+  svg += '<line x1="0" x2="' + W + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
+  if (f.rest > 0 && f.unsicher >= 5){
+    const oben = f.band.map((b,i) => (i ? "L" : "M") + x(e + i).toFixed(1) + " " + y(b[1]).toFixed(1)).join("");
+    const unten = f.band.slice().reverse().map((b,i) => "L" + x(e + f.band.length - 1 - i).toFixed(1) + " " + y(b[0]).toFixed(1)).join("");
+    svg += '<path d="' + oben + unten + 'Z" fill="' + farbe + '" opacity=".15"/>';
+  }
+  if (f.rest > 0)
+    svg += '<path d="' + pfad(f.prog, e) + '" fill="none" stroke="' + farbe + '" stroke-width="1.75" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
+  svg += '<path d="' + pfad(f.ist, 0) + '" fill="none" stroke="var(--ink)" stroke-width="1.75" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+  return svg + "</svg>";
+}
+
 
 function renderBreakdown(){
   const fx = fixedByCat(state.ym), vr = varByCat(state.entries);

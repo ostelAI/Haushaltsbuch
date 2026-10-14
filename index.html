@@ -207,6 +207,18 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-betrag{font-weight:600;white-space:nowrap}
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
 
+/* ---------- Hausausbau ---------- */
+.ab-bar{height:10px;border-radius:999px;background:var(--surface-2);margin:14px 0 9px;overflow:hidden;display:flex}
+.ab-bar>i{display:block;height:100%;border-radius:999px}
+.ab-zeile{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.ab-zeile b{font-weight:600;color:var(--ink)}
+.ab-gw{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;padding:7px 0}
+.ab-gw-n{font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ab-gw-b{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;display:flex}
+.ab-gw-b>i{display:block;height:100%;border-radius:999px}
+.ab-gw-s{font-size:13px;white-space:nowrap}
+@media(max-width:659px){ .ab-gw{grid-template-columns:96px 1fr auto;gap:8px} }
+
 /* ---------- Cashflow-Zeitstrahl ---------- */
 /* Eine durchgehende Linie, an der jeder Tag als Punkt hängt. */
 .zeitstrahl{position:relative;list-style:none;margin:0;padding:0 0 0 24px}
@@ -527,6 +539,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <button type="button" role="tab" data-tab="income">Einnahmen</button>
     <button type="button" role="tab" data-tab="cash">Cashflow</button>
     <button type="button" role="tab" data-tab="year">Jahr</button>
+    <button type="button" role="tab" data-tab="ausbau">Hausausbau</button>
     <button type="button" role="tab" data-tab="settings">Einstellungen</button>
   </nav>
 
@@ -720,6 +733,53 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     </div>
   </section>
 
+  <section class="panel" id="p-ausbau">
+    <div class="card">
+      <div class="card-h"><h2>Hausausbau</h2><span class="eyebrow" id="ausbauSpanne"></span></div>
+      <div class="card-b">
+        <div id="ausbauKopf"></div>
+        <p class="note" style="margin:13px 0 0;padding-top:12px;border-top:1px solid var(--line)">
+          Eigene Buchführung: zählt nicht ins Haushaltsbudget und taucht in Überblick, Cashflow und Jahr nicht auf.
+          Der Rahmen wird in den Einstellungen gesetzt.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2 id="ausbauFormTitel">Neue Ausgabe</h2><span class="eyebrow">Enter zum Speichern</span></div>
+      <div class="card-b">
+        <form class="form" id="ausbauForm" autocomplete="off">
+          <div class="row r-exp">
+            <label class="f"><span>Betrag €</span><input id="aAmount" inputmode="decimal" placeholder="0,00" required></label>
+            <label class="f"><span>Gewerk</span><select id="aGewerk"></select></label>
+            <label class="f"><span>Wofür <i class="opt">optional</i></span><input id="aNote" placeholder="z. B. Fliesen Bad"></label>
+          </div>
+          <details class="mehr" id="aMehr">
+            <summary><span class="mehr-auf">Datum und Person ändern</span><span class="mehr-zu">weniger</span></summary>
+            <div class="row r-exp2">
+              <label class="f"><span>Datum</span><input id="aDate" type="date"></label>
+              <label class="f" id="aPersonWrap" hidden><span>Wer hat gezahlt</span><select id="aPerson"></select></label>
+            </div>
+          </details>
+          <div class="actions">
+            <button class="btn" type="submit" id="aSubmit">Eintragen</button>
+            <button class="btn ghost" type="button" id="aCancel" hidden>Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Nach Gewerk</h2></div>
+      <div class="card-b"><div id="ausbauGewerke"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Alle Ausgaben</h2><span class="eyebrow" id="ausbauAnzahl"></span></div>
+      <div class="card-b"><div class="list" id="ausbauListe"></div></div>
+    </div>
+  </section>
+
   <section class="panel" id="p-settings">
     <div class="card">
       <div class="card-h"><h2>Haushalt &amp; Personen</h2></div>
@@ -780,6 +840,33 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <div class="row r-2">
               <label class="f"><span>Name</span><input id="pName" placeholder="z. B. Anna" required></label>
               <label class="f end"><button class="btn sm" type="submit">Hinzufügen</button></label>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="ausbauCard">
+      <div class="card-h"><h2>Hausausbau</h2></div>
+      <div class="card-b">
+        <p class="note" style="margin:0 0 12px">Der geplante Rahmen für den Ausbau. Er dient nur dem Reiter Hausausbau und wird nirgends sonst eingerechnet — weder im Monatsbudget noch im Cashflow.</p>
+        <form class="form" id="ausbauRahmenForm" autocomplete="off">
+          <div class="row r-2">
+            <label class="f"><span>Rahmen gesamt €</span><input id="abBudget" inputmode="decimal" placeholder="0,00"></label>
+            <label class="f"><span>Begonnen am</span><input id="abStart" type="date"></label>
+          </div>
+          <div class="actions"><button class="btn sm" type="submit">Speichern</button></div>
+        </form>
+        <p class="tagline" id="ausbauRahmenHint" style="margin-top:8px"></p>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+          <div class="eyebrow" style="margin-bottom:8px">Gewerke</div>
+          <p class="note" style="margin:0 0 10px">Eigene Liste, getrennt von den Haushaltskategorien — Rohbau, Sanitär, Elektrik.</p>
+          <div id="gewerkListe"></div>
+          <form class="form" id="gewerkForm" style="margin-top:12px" autocomplete="off">
+            <div class="row r-2">
+              <label class="f"><span>Neues Gewerk</span><input id="gwName" placeholder="z. B. Sanitär" required></label>
+              <label class="f end"><button class="btn sm" type="submit">Anlegen</button></label>
             </div>
           </form>
         </div>
@@ -873,7 +960,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.3.04";
+const APP_VERSION = "1.4.00";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -889,23 +976,35 @@ const LS_GESEHEN = "haushaltsbuch.gesehen";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.4.00", d: "2026-10-14", punkte: [
+      "Neuer Reiter „Hausausbau“ vor den Einstellungen: eigene Buchführung für den Hausausbau.",
+      "Oben der geplante Rahmen gegen das bisher Ausgegebene, darunter das Eintragen wie gewohnt, darunter alle Posten nach Monat.",
+      "Eigene Gewerke statt der Haushaltskategorien — Rohbau, Sanitär, Elektrik. Anzulegen in den Einstellungen.",
+      "Rahmen und Startdatum werden in den Einstellungen unter „Hausausbau“ gesetzt.",
+      "Vollständig getrennt: nichts davon fließt in Überblick, Cashflow, Jahr oder das Monatsbudget ein."
+
+    ]},
   { v: "1.3.04", d: "2026-10-10", punkte: [
       "Die Prognose rechnet jetzt gegen euer monatliches Budget: Sie zeigt, wie viel davon am Monatsende übrig bleibt (oder fehlt), wenn ihr im aktuellen Tempo weiter ausgebt.",
       "Ohne gesetztes Monatsbudget rechnet sie wie bisher mit dem, was nach Fixkosten und Sparziel bleibt."
+
     ]},
   { v: "1.3.03", d: "2026-10-10", punkte: [
       "Die Kachel „Tagesbudget geplant“ zeigt jetzt die Prognose fürs Monatsende — mit kleiner Verlaufskurve: bisher durchgezogen, Prognose gestrichelt.",
       "Die Prognose rechnet sich bei jeder neuen Ausgabe neu. Am Monatsanfang stützt sie sich stärker auf die drei Vormonate, danach immer mehr auf den laufenden Monat.",
       "Große Einzelausgaben zählen mit, werden aber nicht auf den Rest des Monats hochgerechnet."
+
     ]},
   { v: "1.3.02", d: "2026-10-07", punkte: [
       "„zeigen bei“ steht jetzt direkt in jeder Kategoriezeile der Einstellungen, statt hinter dem Farbquadrat versteckt — so geht man die Liste einmal von oben nach unten durch.",
       "Eine Kategorie, die auf „nur Fixkosten“ steht, verschwand bisher nicht aus der Tagesliste, wenn sie dort gerade ausgewählt war. Behoben."
+
     ]},
   { v: "1.3.01", d: "2026-10-07", punkte: [
       "Kategorien lassen sich jetzt trennen: In den Einstellungen legst du je Kategorie fest, ob sie bei täglichen Ausgaben, bei Fixkosten oder überall auswählbar ist.",
       "Damit stehen Steuer und Versicherungen nicht mehr in der Liste, wenn du den Wocheneinkauf einträgst.",
       "Bestehende Einträge behalten ihre Kategorie, auch wenn sie dort inzwischen ausgeblendet ist."
+
     ]},
   { v: "1.3.00", d: "2026-10-07", punkte: [
       "Kategorien stehen beim Eintragen jetzt alphabetisch — Namen findet man ohne Suchen.",
@@ -914,17 +1013,21 @@ const AENDERUNGEN = [
       "In den Einstellungen lässt sich unter „Ich bin“ einmalig festlegen, wer du bist. Danach trägt die App das beim Eintragen selbst ein.",
       "Die Tagesblöcke unter „Ausgaben im Monat“ sind auf dem Handy deutlich klarer getrennt.",
       "Dieser Verlauf hier — der Punkt oben blinkt, wenn es etwas Neues gibt."
+
     ]},
   { v: "1.2.07", d: "2026-10-01", punkte: [
       "Der Cashflow ist ein durchgehender Zeitstrahl statt einzelner Balkenkarten: eine Linie, an der jeder Tag mit Betrag und Kontostand hängt."
+
     ]},
   { v: "1.2.06", d: "2026-10-01", punkte: [
       "Die Kachel heißt „Monatliches Budget“ statt „Variabel bisher“.",
       "Monatsbudget für variable Ausgaben eingeführt."
+
     ]},
   { v: "1.2.04", d: "2026-10-01", punkte: [
       "Neuer Reiter „Cashflow“: zeigt über den Monat, ob das Geld rechtzeitig für die Abbuchungen da ist.",
       "Der CSV-Export verschluckte den Tag bei Einnahmen und den Monat bei jährlichen Posten — behoben."
+
     ]},
   { v: "1.2.0", d: "2026-09-14", punkte: [
       "Budgets je Kategorie, eigener Abrechnungszeitraum, Sortierung und Darstellung einstellbar.",
@@ -938,6 +1041,10 @@ const state = {
   meName: "",             // welcher Name aus plan.people zu diesem Konto gehört
   meReady: false,         // hat die Datenbank die Spalte household_members.person?
   verwendungReady: false, // hat die Datenbank die Spalte categories.verwendung?
+  ausbauReady: false,     // gibt es die Hausausbau-Tabellen schon?
+  ausbauGewerke: [],      // [{id,name,ci,pos}]
+  ausbauPosten: {},       // id -> {d,a,g,n,p,t}
+  editAusbau: null,       // welcher Posten gerade bearbeitet wird
   ym: ymOf(new Date()),   // wird nach dem Laden auf den Abrechnungsmonat gesetzt
   entries: {},
   tab: "overview",
@@ -1207,6 +1314,28 @@ async function loadPlan(){
   }
 }
 
+// Der Hausausbau laedt eigenstaendig und immer vollstaendig: er kennt keinen
+// Monat, sondern zeigt alles seit Beginn. Fehlen die Tabellen, bleibt
+// ausbauReady false und der Reiter erklaert, was zu tun ist — alles andere
+// in der App laeuft unberuehrt weiter.
+async function loadAusbau(){
+  const hid = state.household.id;
+  const [gw, po] = await Promise.all([
+    sb.from("ausbau_gewerke").select("*").eq("household_id", hid).order("position"),
+    sb.from("ausbau_posten").select("*").eq("household_id", hid).order("spent_on", { ascending: false })
+  ]);
+  if (gw.error || po.error){ state.ausbauReady = false; return; }
+  state.ausbauReady = true;
+  state.ausbauGewerke = (gw.data || []).map(g => ({ id: g.id, name: g.name,
+                            ci: Number(g.color_index)||0, pos: Number(g.position)||0 }));
+  const out = {};
+  (po.data || []).forEach(r => {
+    out[r.id] = { d: r.spent_on, a: Number(r.amount)||0, g: r.gewerk_id || "",
+                  n: r.note || "", p: r.person || "", t: Date.parse(r.created_at)||0 };
+  });
+  state.ausbauPosten = out;
+}
+
 async function loadMonth(ym){
   const r = await sb.from("expenses").select("*")
     .eq("household_id", state.household.id)
@@ -1233,6 +1362,7 @@ async function refreshAll(){
   try{
     await loadPlan();
     await loadMonth(state.ym);
+    await loadAusbau();
     setConn(true, "geteilt & synchron");
     saveCache();
   }catch(e){
@@ -1406,9 +1536,11 @@ function render(){
   if (state.tab === "income")   renderIncome();
   if (state.tab === "cash")     renderCashflow();
   if (state.tab === "year")     renderYear();
+  if (state.tab === "ausbau")   renderAusbau();
   if (state.tab === "settings") renderSettings();
   fillCatSelects();
   fillPersonSelects();
+  fillGewerkSelect();
 }
 
 function renderOverview(){
@@ -1947,6 +2079,114 @@ async function renderYear(){
     : "";
 }
 
+/* ---------------------------- Hausausbau ---------------------------- */
+function gewerkById(id){
+  return state.ausbauGewerke.find(g => g.id === id) || { id: id, name: "Ohne Gewerk", ci: 7 };
+}
+function ausbauSumme(){
+  return Object.values(state.ausbauPosten).reduce((s,p) => s + (Number(p.a)||0), 0);
+}
+function renderAusbau(){
+  const hinweis = '<p class="empty">Für den Hausausbau fehlen noch die Tabellen in der Datenbank.<br>' +
+                  'Führ den Nachtrag aus <code>schema.sql</code> in Supabase aus, dann geht es hier los.</p>';
+  if (!state.ausbauReady){
+    $("#ausbauKopf").innerHTML = hinweis;
+    $("#ausbauGewerke").innerHTML = ""; $("#ausbauListe").innerHTML = "";
+    $("#ausbauSpanne").textContent = ""; $("#ausbauAnzahl").textContent = "";
+    return;
+  }
+
+  const posten = Object.entries(state.ausbauPosten);
+  const summe  = ausbauSumme();
+  const rahmen = Number(state.household.ausbau_budget) || 0;
+  const start  = state.household.ausbau_start || "";
+
+  // Kopf: bei gesetztem Rahmen das Verbleibende gross, sonst die Summe.
+  const uebrig = rahmen - summe;
+  const anteil = rahmen > 0 ? Math.min(100, (summe / rahmen) * 100) : 0;
+  $("#ausbauKopf").innerHTML = rahmen > 0
+    ? '<div class="eyebrow">noch übrig</div>' +
+      '<div class="hero-amount" style="color:' + (uebrig < 0 ? "var(--neg)" : "var(--ink)") + '">' + eur(uebrig) + "</div>" +
+      '<div class="ab-bar"><i style="width:' + anteil.toFixed(1) + '%;background:' +
+        (anteil >= 100 ? "var(--neg-fill)" : anteil >= 80 ? "var(--warn-fill)" : "var(--accent)") + '"></i></div>' +
+      '<div class="ab-zeile"><span>Ausgegeben <b class="num">' + eur(summe) + "</b></span>" +
+        "<span>" + (rahmen > 0 ? nf0.format(Math.round(summe/rahmen*100)) + " % vom Rahmen" : "") + "</span>" +
+        '<span>Rahmen <b class="num">' + eur(rahmen) + "</b></span></div>"
+    : '<div class="eyebrow">bisher ausgegeben</div>' +
+      '<div class="hero-amount">' + eur(summe) + "</div>" +
+      '<p class="note" style="margin:10px 0 0">Noch kein Rahmen gesetzt — in den Einstellungen unter „Hausausbau“ eintragen, dann rechnet die App mit.</p>';
+
+  const d = start ? new Date(start + "T00:00:00") : null;
+  $("#ausbauSpanne").textContent = (d && !isNaN(d)) ? "seit " + MONTHS[d.getMonth()] + " " + d.getFullYear() : "";
+  $("#ausbauAnzahl").textContent = posten.length
+    ? posten.length + (posten.length === 1 ? " Posten · " : " Posten · ") + eur(summe) : "";
+
+  // Nach Gewerk, absteigend — zeigt, wo das Geld hingeht.
+  const jeGewerk = {};
+  posten.forEach(([,p]) => { jeGewerk[p.g || ""] = (jeGewerk[p.g || ""] || 0) + (Number(p.a)||0); });
+  const sortiert = Object.entries(jeGewerk).sort((a,b) => b[1] - a[1]);
+  const groesstes = sortiert.length ? sortiert[0][1] : 1;
+  $("#ausbauGewerke").innerHTML = sortiert.length
+    ? sortiert.map(([gid, betrag]) => {
+        const g = gewerkById(gid);
+        return '<div class="ab-gw"><span class="ab-gw-n">' + esc(g.name) + "</span>" +
+          '<span class="ab-gw-b"><i style="width:' + ((betrag/groesstes)*100).toFixed(1) + '%;background:' + catColor(g) + '"></i></span>' +
+          '<span class="ab-gw-s num">' + eur(betrag) + "</span></div>";
+      }).join("")
+    : '<p class="empty">Noch nichts eingetragen.</p>';
+
+  // Liste, nach Monat gruppiert: der Ausbau laeuft ueber Jahre, Tagesbloecke
+  // waeren zu kleinteilig.
+  if (!posten.length){
+    $("#ausbauListe").innerHTML = '<p class="empty">Noch keine Ausgabe für den Ausbau.<br>Betrag oben eintragen und Enter drücken.</p>';
+    return;
+  }
+  posten.sort((a,b) => (b[1].d || "").localeCompare(a[1].d || "") || (b[1].t||0) - (a[1].t||0));
+  const gruppen = [];
+  posten.forEach(([id,p]) => {
+    const ym = (p.d || "").slice(0,7);
+    const g = gruppen[gruppen.length-1];
+    if (g && g.ym === ym) g.rows.push([id,p]); else gruppen.push({ ym: ym, rows: [[id,p]] });
+  });
+  $("#ausbauListe").innerHTML = gruppen.map(gr => {
+    const summeGr = gr.rows.reduce((s,[,p]) => s + (Number(p.a)||0), 0);
+    return '<div class="daygroup"><div class="dayhead"><span class="d">' + esc(ymLabel(gr.ym)) + "</span>" +
+      '<span class="s num">' + eur(summeGr) + "</span></div>" +
+      gr.rows.map(([id,p]) => {
+        const g = gewerkById(p.g);
+        const dt = new Date(p.d + "T00:00:00");
+        const meta = ['<span><span class="dotchip" style="background:' + catColor(g) + '"></span>' + esc(g.name) + "</span>"];
+        meta.push("<span>" + (isNaN(dt) ? esc(p.d) : String(dt.getDate()).padStart(2,"0") + "." + String(dt.getMonth()+1).padStart(2,"0") + ".") + "</span>");
+        if (p.p) meta.push("<span>" + esc(p.p) + "</span>");
+        return '<div class="item' + (state.editAusbau === id ? " editing" : "") + '">' +
+          '<div class="item-main"><div class="t">' + esc(p.n || g.name) + '</div><div class="m">' + meta.join("") + "</div></div>" +
+          '<div class="amt num">' + eur(p.a) + "</div>" +
+          '<div class="rowbtns"><button class="icon-btn edit" type="button" data-abedit="' + id + '" aria-label="Bearbeiten">&#9998;</button>' +
+          '<button class="icon-btn" type="button" data-abdel="' + id + '" aria-label="Löschen">&#10005;</button></div></div>';
+      }).join("") + "</div>";
+  }).join("");
+}
+
+function fillGewerkSelect(){
+  const el = $("#aGewerk"); if (!el) return;
+  const sortiert = state.ausbauGewerke.slice()
+    .sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
+  const keep = el.value;
+  const bearbeitet = ((state.editAusbau && state.ausbauPosten[state.editAusbau]) || {}).g || "";
+  el.innerHTML = sortiert.map(g => '<option value="' + esc(g.id) + '">' + esc(g.name) + "</option>").join("") +
+                 '<option value="__new__">+ Neues Gewerk…</option>';
+  const ziel = bearbeitet || keep;
+  if (ziel && ziel !== "__new__" && Array.from(el.options).some(o => o.value === ziel)) el.value = ziel;
+  $("#aPersonWrap").hidden = state.plan.people.length === 0;
+  const pe = $("#aPerson");
+  if (pe){
+    const pk = pe.value;
+    pe.innerHTML = '<option value="">—</option>' + state.plan.people.map(x => '<option value="' + esc(x) + '">' + esc(x) + "</option>").join("");
+    if (pk && Array.from(pe.options).some(o=>o.value===pk)) pe.value = pk;
+    else if (state.meName && Array.from(pe.options).some(o=>o.value===state.meName)) pe.value = state.meName;
+  }
+}
+
 function renderSettings(){
   if (document.activeElement !== $("#hhRename")) $("#hhRename").value = state.household.name || "";
 
@@ -1995,6 +2235,27 @@ function renderSettings(){
       "</div>" : "") +
       "</div>";
   }).join("");
+
+  // Hausausbau in den Einstellungen
+  $("#abBudget").value = Number(state.household.ausbau_budget) > 0 ? nf.format(state.household.ausbau_budget) : "";
+  $("#abStart").value  = state.household.ausbau_start || "";
+  $("#ausbauRahmenHint").textContent = state.ausbauReady
+    ? (Number(state.household.ausbau_budget) > 0
+        ? "Bisher ausgegeben: " + eur(ausbauSumme()) + " von " + eur(state.household.ausbau_budget)
+        : "Ohne Rahmen zeigt der Reiter nur die Summe.")
+    : "Dafür fehlen noch die Tabellen — führ den Nachtrag aus schema.sql in Supabase aus.";
+  $("#ausbauRahmenForm").querySelector("button").disabled = !state.ausbauReady;
+  $("#gewerkForm").querySelector("button").disabled = !state.ausbauReady;
+
+  const jeGw = {};
+  Object.values(state.ausbauPosten).forEach(p => { jeGw[p.g || ""] = (jeGw[p.g || ""] || 0) + (Number(p.a)||0); });
+  $("#gewerkListe").innerHTML = state.ausbauGewerke.length
+    ? state.ausbauGewerke.map(g =>
+        '<div class="catrow"><span class="chipbtn" style="background:' + catColor(g) + ';cursor:default"></span>' +
+        "<b>" + esc(g.name) + "</b>" +
+        '<span class="num" style="font-size:12.5px;color:var(--ink-3)">' + (jeGw[g.id] ? eur(jeGw[g.id]) : "") + "</span>" +
+        '<button class="icon-btn" type="button" data-gwdel="' + esc(g.id) + '" aria-label="' + esc(g.name) + ' löschen">&#10005;</button></div>').join("")
+    : '<p class="note" style="margin:0">Noch keine Gewerke. Leg unten welche an — Rohbau, Sanitär, Elektrik.</p>';
 
   $("#cSwatches").innerHTML = CAT_VARS.map((v,ci) =>
     '<button class="sw" type="button" data-newcolor="' + ci + '" aria-pressed="' + (state.newCatColor===ci) + '" aria-label="Farbe ' + (ci+1) + '" style="background:var(' + v + ')"></button>').join("");
@@ -2238,6 +2499,130 @@ $("#expForm").addEventListener("submit", async e => {
   if (ok) toast(wasEdit ? "Eintrag geändert" : eur(entry.a) + " eingetragen");
   $("#eAmount").focus();
 });
+// ---------------------------------------------------------------------------
+//  Hausausbau — eintragen, bearbeiten, löschen
+// ---------------------------------------------------------------------------
+function resetAusbauForm(){
+  state.editAusbau = null;
+  $("#ausbauForm").reset();
+  $("#aDate").value = todayISO();
+  $("#aMehr").open = false;
+  $("#ausbauFormTitel").textContent = "Neue Ausgabe";
+  $("#aSubmit").textContent = "Eintragen";
+  $("#aCancel").hidden = true;
+  fillGewerkSelect();
+}
+
+$("#ausbauForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!state.ausbauReady){ toast("Dafür fehlen noch die Tabellen in der Datenbank"); return; }
+  const a = parseAmount($("#aAmount").value);
+  if (!isFinite(a) || a === 0){ toast("Bitte einen Betrag eingeben, z. B. 249,90"); $("#aAmount").focus(); return; }
+  const gw = $("#aGewerk").value;
+  const row = {
+    household_id: state.household.id,
+    spent_on: $("#aDate").value || todayISO(),
+    amount: Math.abs(a),
+    gewerk_id: (gw && gw !== "__new__") ? gw : null,
+    note: $("#aNote").value.trim() || null,
+    person: $("#aPerson").value || null
+  };
+  const id = state.editAusbau, warEdit = !!id;
+  const ok = await guard(() => id ? sb.from("ausbau_posten").update(row).eq("id", id)
+                                  : sb.from("ausbau_posten").insert(row));
+  if (!ok) return;
+  resetAusbauForm();
+  await loadAusbau();
+  render();
+  toast(warEdit ? "Eintrag geändert" : eur(Math.abs(a)) + " eingetragen");
+  $("#aAmount").focus();
+});
+
+$("#aCancel").addEventListener("click", () => { resetAusbauForm(); render(); });
+
+$("#ausbauListe").addEventListener("click", async e => {
+  const del = e.target.closest("[data-abdel]"), ed = e.target.closest("[data-abedit]");
+  if (del){
+    const id = del.dataset.abdel, p = state.ausbauPosten[id]; if (!p) return;
+    if (!confirm("Diesen Eintrag löschen?\n\n" + (p.n || gewerkById(p.g).name) + " · " + eur(p.a))) return;
+    if (await guard(() => sb.from("ausbau_posten").delete().eq("id", id))){
+      delete state.ausbauPosten[id]; render(); toast("Eintrag gelöscht");
+    }
+  } else if (ed){
+    const id = ed.dataset.abedit, p = state.ausbauPosten[id]; if (!p) return;
+    state.editAusbau = id;
+    // Erst neu aufbauen, dann die Werte setzen — sonst liefe die Zuweisung an
+    // eine Auswahlliste, die das Gewerk des Eintrags noch nicht enthält.
+    render();
+    $("#aAmount").value = nf.format(p.a); $("#aNote").value = p.n || "";
+    $("#aGewerk").value = p.g || ""; $("#aDate").value = p.d; $("#aPerson").value = p.p || "";
+    $("#aMehr").open = true;
+    $("#ausbauFormTitel").textContent = "Eintrag bearbeiten";
+    $("#aSubmit").textContent = "Speichern";
+    $("#aCancel").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    $("#aAmount").focus();
+  }
+});
+
+// Gewerk direkt aus der Auswahl anlegen, wie bei den Kategorien.
+$("#aGewerk").addEventListener("change", async e => {
+  if (e.target.value !== "__new__") return;
+  const name = (prompt("Name des neuen Gewerks?") || "").trim();
+  if (!name){ fillGewerkSelect(); return; }
+  const neu = await gewerkAnlegen(name);
+  fillGewerkSelect();
+  if (neu) $("#aGewerk").value = neu;
+});
+
+async function gewerkAnlegen(name){
+  if (state.ausbauGewerke.some(g => g.name.toLowerCase() === name.toLowerCase())){
+    toast("Dieses Gewerk gibt es schon"); return null;
+  }
+  const r = await sb.from("ausbau_gewerke").insert({
+    household_id: state.household.id, name: name,
+    color_index: state.ausbauGewerke.length % CAT_VARS.length,
+    position: state.ausbauGewerke.length
+  }).select().single();
+  if (r.error){ toast(errText(r.error)); return null; }
+  await loadAusbau(); render();
+  toast(name + " angelegt");
+  return r.data.id;
+}
+
+// Rahmen und Startdatum
+$("#ausbauRahmenForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = parseAmount($("#abBudget").value);
+  const betrag = isFinite(v) ? Math.abs(v) : 0;
+  const start = $("#abStart").value || null;
+  if (await guard(() => sb.from("households").update({ ausbau_budget: betrag, ausbau_start: start })
+                          .eq("id", state.household.id))){
+    state.household.ausbau_budget = betrag;
+    state.household.ausbau_start = start;
+    render();
+    toast(betrag > 0 ? "Rahmen: " + eur(betrag) : "Rahmen entfernt");
+  }
+});
+
+$("#gewerkForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#gwName").value.trim(); if (!name) return;
+  if (await gewerkAnlegen(name)) $("#gwName").value = "";
+});
+
+$("#gewerkListe").addEventListener("click", async e => {
+  const d = e.target.closest("[data-gwdel]"); if (!d) return;
+  const g = gewerkById(d.dataset.gwdel);
+  const benutzt = Object.values(state.ausbauPosten).some(p => p.g === g.id);
+  if (!confirm(benutzt
+      ? g.name + " löschen?\n\nDie Posten bleiben erhalten und stehen danach ohne Gewerk da."
+      : g.name + " löschen?")) return;
+  if (await guard(() => sb.from("ausbau_gewerke").delete().eq("id", g.id))){
+    await loadAusbau(); render(); toast(g.name + " gelöscht");
+  }
+});
+
 $("#eCancel").addEventListener("click", () => { resetExpForm(); render(); });
 $("#expList").addEventListener("click", async e => {
   const del = e.target.closest("[data-del]"), ed = e.target.closest("[data-edit]");

@@ -331,3 +331,52 @@ create policy members_update on public.household_members
 -- betroffen.
 alter table public.categories add column if not exists verwendung text not null default 'beide'
   check (verwendung in ('beide','taeglich','fix'));
+
+-- ================================ Nachtrag: Hausausbau ====================
+-- Eine eigene Buchführung für den Hausausbau, bewusst getrennt vom Haushalt:
+-- eigene Tabellen, eigene Gewerke, eigener Rahmen. Nichts davon fließt in
+-- Überblick, Cashflow, Jahr oder das Monatsbudget ein — der Ausbau läuft über
+-- Jahre und würde jede Monatsrechnung unbrauchbar machen.
+
+-- Gewerke: wie Kategorien, aber nur für den Ausbau. Rohbau, Sanitär, Elektrik.
+create table if not exists public.ausbau_gewerke (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  name         text not null,
+  color_index  smallint not null default 0,
+  position     smallint not null default 0
+);
+
+-- Die einzelnen Posten.
+create table if not exists public.ausbau_posten (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  spent_on     date not null,
+  amount       numeric(12,2) not null,
+  gewerk_id    uuid references public.ausbau_gewerke(id) on delete set null,
+  note         text,
+  person       text,
+  created_at   timestamptz not null default now(),
+  created_by   uuid default auth.uid()
+);
+
+create index if not exists ausbau_gewerke_hh_idx on public.ausbau_gewerke (household_id, position);
+create index if not exists ausbau_posten_hh_idx  on public.ausbau_posten  (household_id, spent_on);
+
+alter table public.ausbau_gewerke enable row level security;
+alter table public.ausbau_posten  enable row level security;
+
+-- Dieselbe Regel wie überall: nur Mitglieder des Haushalts, sonst leer.
+drop policy if exists ausbau_gewerke_all on public.ausbau_gewerke;
+create policy ausbau_gewerke_all on public.ausbau_gewerke
+  for all to authenticated using (public.is_member(household_id)) with check (public.is_member(household_id));
+
+drop policy if exists ausbau_posten_all on public.ausbau_posten;
+create policy ausbau_posten_all on public.ausbau_posten
+  for all to authenticated using (public.is_member(household_id)) with check (public.is_member(household_id));
+
+-- ausbau_budget: der geplante Rahmen für den Ausbau. 0 = kein Rahmen gesetzt,
+-- dann zeigt der Reiter nur die Summe ohne Vergleich.
+-- ausbau_start: ab wann gerechnet wird; dient nur der Beschriftung.
+alter table public.households add column if not exists ausbau_budget numeric(12,2) not null default 0;
+alter table public.households add column if not exists ausbau_start date;

@@ -773,7 +773,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <div class="card" data-ansicht="geplant">
       <div class="card-h"><h2 id="planFormTitel">Neue Kalkulation</h2><span class="eyebrow">Enter zum Speichern</span></div>
       <div class="card-b">
-        <p class="note" style="margin:0 0 12px">Was du für ein Gewerk kalkulierst, z. B. ein Angebot oder eine Schätzung. Geht nicht vom Rahmen ab.</p>
+        <p class="note" style="margin:0 0 12px">Was du für ein Gewerk kalkulierst, z. B. ein Angebot oder eine Schätzung. Wird hier vom Rahmen abgezogen — getrennt vom Aufgewendeten.</p>
         <form class="form" id="planForm" autocomplete="off">
           <div class="row r-exp">
             <label class="f"><span>Kalkulierter Betrag €</span><input id="pAmount" inputmode="decimal" placeholder="0,00" required></label>
@@ -1008,7 +1008,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.5.01";
+const APP_VERSION = "1.5.02";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1025,6 +1025,10 @@ const LS_AB_ANSICHT = "haushaltsbuch.ausbauAnsicht";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.5.02", d: "2026-10-26", punkte: [
+      "Hausausbau: Jede Ansicht zieht jetzt ihren eigenen Betrag vom Rahmen ab. Unter „Kalkuliert“ steht oben, was nach eurer Kalkulation übrig bleibt, unter „Aufgewendet“, was nach den echten Ausgaben übrig ist."
+
+    ]},
   { v: "1.5.01", d: "2026-10-26", punkte: [
       "Hausausbau: „Geplant“ heißt jetzt „Kalkuliert“, „Bezahlt“ heißt „Aufgewendet“. Beide Seiten haben ihre eigene Farbe, damit man sie nicht verwechselt."
 
@@ -2189,29 +2193,29 @@ function renderAusbau(){
   const start  = state.household.ausbau_start || "";
 
   // Kopf: bei gesetztem Rahmen das Verbleibende gross, sonst die Summe.
+  // Jede Ansicht zieht ihren eigenen Wert vom Rahmen ab:
+  // Kalkuliert = Rahmen − kalkuliert, Aufgewendet = Rahmen − aufgewendet.
   const geplant = planSumme();
-  const uebrig = rahmen - summe;
-  const anteil = rahmen > 0 ? Math.min(100, (summe / rahmen) * 100) : 0;
-  const anteilPlan = rahmen > 0 ? Math.min(100, (geplant / rahmen) * 100) : 0;
+  const kalk    = ansicht === "geplant";
+  const wert    = kalk ? geplant : summe;
+  const farbe   = kalk ? "var(--c2)" : "var(--accent)";
+  const wort    = kalk ? "kalkuliert" : "aufgewendet";
+  const uebrig  = rahmen - wert;
+  const anteil  = rahmen > 0 ? Math.min(100, (wert / rahmen) * 100) : 0;
   const drei = '<div class="ab-drei">' +
       '<div><span class="eyebrow">Rahmen</span><b class="num">' + (rahmen > 0 ? eur(rahmen) : "—") + "</b></div>" +
       '<div><span class="eyebrow">Kalkuliert</span><b class="num ab-plan-farbe">' + eur(geplant) + "</b></div>" +
       '<div><span class="eyebrow">Aufgewendet</span><b class="num" style="color:var(--accent)">' + eur(summe) + "</b></div></div>";
-  // Balken: hinten das Geplante (blass), vorn das Bezahlte.
-  const balken = '<div class="ab-bar" style="position:relative">' +
-      '<i style="position:absolute;left:0;top:0;width:' + anteilPlan.toFixed(1) + '%;background:color-mix(in srgb, var(--c2) 45%, var(--surface-2))"></i>' +
-      '<i style="position:absolute;left:0;top:0;width:' + anteil.toFixed(1) + '%;background:' +
-        (anteil >= 100 ? "var(--neg-fill)" : anteil >= 80 ? "var(--warn-fill)" : "var(--accent)") + '"></i></div>';
-  const frei = rahmen - geplant;
+  const balken = '<div class="ab-bar"><i style="width:' + anteil.toFixed(1) + '%;background:' +
+      (wert > rahmen ? "var(--neg-fill)" : farbe) + '"></i></div>';
   $("#ausbauKopf").innerHTML = rahmen > 0
-    ? '<div class="eyebrow">noch übrig</div>' +
+    ? '<div class="eyebrow">' + (kalk ? "noch übrig laut Kalkulation" : "noch übrig") + "</div>" +
       '<div class="hero-amount" style="color:' + (uebrig < 0 ? "var(--neg)" : "var(--ink)") + '">' + eur(uebrig) + "</div>" +
       drei + balken +
-      '<div class="ab-zeile"><span>' + (frei < 0 ? "Über den Rahmen kalkuliert " : "Noch nicht kalkuliert ") +
-        '<b class="num"' + (frei < 0 ? ' style="color:var(--neg)"' : "") + ">" + eur(Math.abs(frei)) + "</b></span>" +
-        "<span>" + nf0.format(Math.round(summe/rahmen*100)) + " % vom Rahmen aufgewendet</span></div>"
-    : '<div class="eyebrow">bisher aufgewendet</div>' +
-      '<div class="hero-amount">' + eur(summe) + "</div>" + drei +
+      '<div class="ab-zeile"><span>' + (kalk ? "Kalkuliert " : "Aufgewendet ") + '<b class="num">' + eur(wert) + "</b></span>" +
+        "<span>" + nf0.format(Math.round(wert/rahmen*100)) + " % vom Rahmen " + wort + "</span></div>"
+    : '<div class="eyebrow">bisher ' + wort + "</div>" +
+      '<div class="hero-amount">' + eur(wert) + "</div>" + drei +
       '<p class="note" style="margin:10px 0 0">Noch kein Rahmen gesetzt — in den Einstellungen unter „Hausausbau“ eintragen, dann rechnet die App mit.</p>';
 
   const d = start ? new Date(start + "T00:00:00") : null;

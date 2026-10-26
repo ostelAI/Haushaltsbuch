@@ -8,6 +8,19 @@ Format je Eintrag: Datum · Version · Wunsch (in Christians Worten, sinngemäß
 
 ---
 
+## 2026-10-26 · v1.5.02 · Jede Ansicht zieht vom Rahmen ab
+
+**Wunsch:** „Es zieht nicht ab beim neuen Reiter, bei Kalkuliert — prüfe auch bei Aufgewendet.“
+Bisher zeigte der Kopf in beiden Ansichten nur Rahmen − Aufgewendet; Kalkuliertes ging
+bewusst nicht ab. Christian will, dass auch Kalkuliertes abgezogen wird.
+
+**Umgesetzt:**
+- Der große Betrag oben hängt von der Ansicht ab:
+  Kalkuliert → „noch übrig laut Kalkulation“ = Rahmen − kalkuliert (Balken orange),
+  Aufgewendet → „noch übrig“ = Rahmen − aufgewendet (Balken grün).
+- Die Zeile Rahmen / Kalkuliert / Aufgewendet bleibt in beiden Ansichten sichtbar.
+- Beide getestet: neuer Eintrag senkt den Betrag sofort in seiner Ansicht.
+
 ## 2026-10-26 · v1.5.01 · Hausausbau: Kalkuliert / Aufgewendet
 
 **Wunsch:** „Ist“ ist kein schönes Wort. Die zwei Ansichten sollen „Kalkuliert“ und

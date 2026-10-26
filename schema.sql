@@ -380,3 +380,25 @@ create policy ausbau_posten_all on public.ausbau_posten
 -- ausbau_start: ab wann gerechnet wird; dient nur der Beschriftung.
 alter table public.households add column if not exists ausbau_budget numeric(12,2) not null default 0;
 alter table public.households add column if not exists ausbau_start date;
+
+-- ================================ Nachtrag: Hausausbau geplant ============
+-- Plan-Posten: was für ein Gewerk eingeplant ist (Angebot, Schätzung). Bewusst
+-- eine eigene Tabelle statt einer Spalte an ausbau_posten — so kann eine
+-- ältere App-Fassung Geplantes nie versehentlich als bezahlt mitzählen.
+create table if not exists public.ausbau_plan (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  amount       numeric(12,2) not null,
+  gewerk_id    uuid references public.ausbau_gewerke(id) on delete set null,
+  note         text,
+  created_at   timestamptz not null default now(),
+  created_by   uuid default auth.uid()
+);
+
+create index if not exists ausbau_plan_hh_idx on public.ausbau_plan (household_id);
+
+alter table public.ausbau_plan enable row level security;
+
+drop policy if exists ausbau_plan_all on public.ausbau_plan;
+create policy ausbau_plan_all on public.ausbau_plan
+  for all to authenticated using (public.is_member(household_id)) with check (public.is_member(household_id));

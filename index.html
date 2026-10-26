@@ -218,6 +218,21 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .ab-gw-b>i{display:block;height:100%;border-radius:999px}
 .ab-gw-s{font-size:13px;white-space:nowrap}
 @media(max-width:659px){ .ab-gw{grid-template-columns:96px 1fr auto;gap:8px} }
+/* Umschalter Geplant | Bezahlt */
+.ab-seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;margin-bottom:14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.ab-seg button{border:0;border-radius:10px;padding:10px 12px;min-height:44px;background:none;
+  font:inherit;font-size:15px;font-weight:600;color:var(--ink-3);cursor:pointer}
+.ab-seg button[aria-selected="true"]{background:var(--surface-2);color:var(--ink)}
+.ab-drei{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.ab-drei b{display:block;font-size:15px;font-weight:600;margin-top:3px;white-space:nowrap}
+.ab-plan-farbe{color:var(--c2)}
+.ab-gw-s .von{color:var(--ink-3);font-weight:400}
+.ab-gw-ueber{grid-column:1/-1;font-size:12px;color:var(--warn);margin-top:-4px}
+.ab-pg{padding:4px 0 10px}
+.ab-pg+.ab-pg{border-top:1px solid var(--line);padding-top:10px}
+.ab-pg-h{display:flex;justify-content:space-between;gap:10px;font-size:14px;font-weight:600;padding:4px 0}
+[data-ansicht][hidden]{display:none}
 
 /* ---------- Cashflow-Zeitstrahl ---------- */
 /* Eine durchgehende Linie, an der jeder Tag als Punkt hängt. */
@@ -734,6 +749,11 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
   </section>
 
   <section class="panel" id="p-ausbau">
+    <div class="ab-seg" role="tablist" aria-label="Ansicht Hausausbau">
+      <button type="button" role="tab" data-abansicht="geplant">Geplant</button>
+      <button type="button" role="tab" data-abansicht="bezahlt">Bezahlt</button>
+    </div>
+
     <div class="card">
       <div class="card-h"><h2>Hausausbau</h2><span class="eyebrow" id="ausbauSpanne"></span></div>
       <div class="card-b">
@@ -745,7 +765,30 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-ansicht="geplant">
+      <div class="card-h"><h2 id="planFormTitel">Neuer Plan-Posten</h2><span class="eyebrow">Enter zum Speichern</span></div>
+      <div class="card-b">
+        <p class="note" style="margin:0 0 12px">Was du für ein Gewerk einplanst, z. B. ein Angebot oder eine Schätzung. Geht nicht vom Rahmen ab.</p>
+        <form class="form" id="planForm" autocomplete="off">
+          <div class="row r-exp">
+            <label class="f"><span>Geplanter Betrag €</span><input id="pAmount" inputmode="decimal" placeholder="0,00" required></label>
+            <label class="f"><span>Gewerk</span><select id="pGewerk"></select></label>
+            <label class="f"><span>Wofür <i class="opt">optional</i></span><input id="pNote" placeholder="z. B. Angebot Elektriker"></label>
+          </div>
+          <div class="actions">
+            <button class="btn" type="submit" id="pSubmit">Planen</button>
+            <button class="btn ghost" type="button" id="pCancel" hidden>Abbrechen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" data-ansicht="geplant">
+      <div class="card-h"><h2>Geplant nach Gewerk</h2><span class="eyebrow" id="planAnzahl"></span></div>
+      <div class="card-b"><div class="list" id="planListe"></div></div>
+    </div>
+
+    <div class="card" data-ansicht="bezahlt">
       <div class="card-h"><h2 id="ausbauFormTitel">Neue Ausgabe</h2><span class="eyebrow">Enter zum Speichern</span></div>
       <div class="card-b">
         <form class="form" id="ausbauForm" autocomplete="off">
@@ -769,12 +812,12 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-h"><h2>Nach Gewerk</h2></div>
+    <div class="card" data-ansicht="bezahlt">
+      <div class="card-h"><h2>Bezahlt nach Gewerk</h2><span class="eyebrow">bezahlt / geplant</span></div>
       <div class="card-b"><div id="ausbauGewerke"></div></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-ansicht="bezahlt">
       <div class="card-h"><h2>Alle Ausgaben</h2><span class="eyebrow" id="ausbauAnzahl"></span></div>
       <div class="card-b"><div class="list" id="ausbauListe"></div></div>
     </div>
@@ -960,7 +1003,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.4.00";
+const APP_VERSION = "1.5.00";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -971,11 +1014,19 @@ const DAYS = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","S
 const LS_HH = "haushaltsbuch.household";
 const LS_CACHE = "haushaltsbuch.cache";
 const LS_GESEHEN = "haushaltsbuch.gesehen";
+const LS_AB_ANSICHT = "haushaltsbuch.ausbauAnsicht";
 
 // Änderungsverlauf, neueste Version oben. Beim Veröffentlichen einer neuen
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.5.00", d: "2026-10-26", punkte: [
+      "Hausausbau hat oben einen Umschalter: „Geplant“ und „Bezahlt“.",
+      "Unter „Geplant“ tragt ihr ein, was ihr je Gewerk einplant — Angebote, Schätzungen. Das geht nicht vom Rahmen ab.",
+      "Unter „Bezahlt“ steht wie bisher, was tatsächlich ausgegeben wurde, jetzt je Gewerk gegen den Plan. Liegt ein Gewerk über Plan, wird es markiert.",
+      "Im Kopf stehen Rahmen, Geplant und Bezahlt nebeneinander, dazu wie viel vom Rahmen noch nicht verplant ist."
+
+    ]},
   { v: "1.4.00", d: "2026-10-14", punkte: [
       "Neuer Reiter „Hausausbau“ vor den Einstellungen: eigene Buchführung für den Hausausbau.",
       "Oben der geplante Rahmen gegen das bisher Ausgegebene, darunter das Eintragen wie gewohnt, darunter alle Posten nach Monat.",
@@ -1045,6 +1096,10 @@ const state = {
   ausbauGewerke: [],      // [{id,name,ci,pos}]
   ausbauPosten: {},       // id -> {d,a,g,n,p,t}
   editAusbau: null,       // welcher Posten gerade bearbeitet wird
+  ausbauPlanReady: false, // gibt es die Tabelle ausbau_plan schon?
+  ausbauPlan: {},         // id -> {a,g,n,t}  geplante Betraege je Gewerk
+  editPlan: null,         // welcher Plan-Posten gerade bearbeitet wird
+  ausbauAnsicht: (function(){ try{ return localStorage.getItem(LS_AB_ANSICHT) === "geplant" ? "geplant" : "bezahlt"; }catch(e){ return "bezahlt"; } })(),
   ym: ymOf(new Date()),   // wird nach dem Laden auf den Abrechnungsmonat gesetzt
   entries: {},
   tab: "overview",
@@ -1334,6 +1389,16 @@ async function loadAusbau(){
                   n: r.note || "", p: r.person || "", t: Date.parse(r.created_at)||0 };
   });
   state.ausbauPosten = out;
+
+  // Geplantes liegt in einer eigenen Tabelle. Fehlt sie noch, laeuft
+  // „Bezahlt“ trotzdem normal weiter.
+  const pl = await sb.from("ausbau_plan").select("*").eq("household_id", hid).order("created_at");
+  state.ausbauPlanReady = !pl.error;
+  const plan = {};
+  (pl.data || []).forEach(r => {
+    plan[r.id] = { a: Number(r.amount)||0, g: r.gewerk_id || "", n: r.note || "", t: Date.parse(r.created_at)||0 };
+  });
+  state.ausbauPlan = plan;
 }
 
 async function loadMonth(ym){
@@ -2086,13 +2151,26 @@ function gewerkById(id){
 function ausbauSumme(){
   return Object.values(state.ausbauPosten).reduce((s,p) => s + (Number(p.a)||0), 0);
 }
+function planSumme(){
+  return Object.values(state.ausbauPlan).reduce((s,p) => s + (Number(p.a)||0), 0);
+}
+function jeGewerkSumme(obj){
+  const out = {};
+  Object.values(obj).forEach(p => { out[p.g || ""] = (out[p.g || ""] || 0) + (Number(p.a)||0); });
+  return out;
+}
 function renderAusbau(){
+  const ansicht = state.ausbauAnsicht;
+  document.querySelectorAll("[data-abansicht]").forEach(b =>
+    b.setAttribute("aria-selected", b.dataset.abansicht === ansicht ? "true" : "false"));
+  document.querySelectorAll("#p-ausbau [data-ansicht]").forEach(el => { el.hidden = el.dataset.ansicht !== ansicht; });
   const hinweis = '<p class="empty">Für den Hausausbau fehlen noch die Tabellen in der Datenbank.<br>' +
                   'Führ den Nachtrag aus <code>schema.sql</code> in Supabase aus, dann geht es hier los.</p>';
   if (!state.ausbauReady){
     $("#ausbauKopf").innerHTML = hinweis;
     $("#ausbauGewerke").innerHTML = ""; $("#ausbauListe").innerHTML = "";
     $("#ausbauSpanne").textContent = ""; $("#ausbauAnzahl").textContent = "";
+    $("#planListe").innerHTML = ""; $("#planAnzahl").textContent = "";
     return;
   }
 
@@ -2102,18 +2180,29 @@ function renderAusbau(){
   const start  = state.household.ausbau_start || "";
 
   // Kopf: bei gesetztem Rahmen das Verbleibende gross, sonst die Summe.
+  const geplant = planSumme();
   const uebrig = rahmen - summe;
   const anteil = rahmen > 0 ? Math.min(100, (summe / rahmen) * 100) : 0;
+  const anteilPlan = rahmen > 0 ? Math.min(100, (geplant / rahmen) * 100) : 0;
+  const drei = '<div class="ab-drei">' +
+      '<div><span class="eyebrow">Rahmen</span><b class="num">' + (rahmen > 0 ? eur(rahmen) : "—") + "</b></div>" +
+      '<div><span class="eyebrow">Geplant</span><b class="num ab-plan-farbe">' + eur(geplant) + "</b></div>" +
+      '<div><span class="eyebrow">Bezahlt</span><b class="num" style="color:var(--accent)">' + eur(summe) + "</b></div></div>";
+  // Balken: hinten das Geplante (blass), vorn das Bezahlte.
+  const balken = '<div class="ab-bar" style="position:relative">' +
+      '<i style="position:absolute;left:0;top:0;width:' + anteilPlan.toFixed(1) + '%;background:color-mix(in srgb, var(--c2) 45%, var(--surface-2))"></i>' +
+      '<i style="position:absolute;left:0;top:0;width:' + anteil.toFixed(1) + '%;background:' +
+        (anteil >= 100 ? "var(--neg-fill)" : anteil >= 80 ? "var(--warn-fill)" : "var(--accent)") + '"></i></div>';
+  const frei = rahmen - geplant;
   $("#ausbauKopf").innerHTML = rahmen > 0
     ? '<div class="eyebrow">noch übrig</div>' +
       '<div class="hero-amount" style="color:' + (uebrig < 0 ? "var(--neg)" : "var(--ink)") + '">' + eur(uebrig) + "</div>" +
-      '<div class="ab-bar"><i style="width:' + anteil.toFixed(1) + '%;background:' +
-        (anteil >= 100 ? "var(--neg-fill)" : anteil >= 80 ? "var(--warn-fill)" : "var(--accent)") + '"></i></div>' +
-      '<div class="ab-zeile"><span>Ausgegeben <b class="num">' + eur(summe) + "</b></span>" +
-        "<span>" + (rahmen > 0 ? nf0.format(Math.round(summe/rahmen*100)) + " % vom Rahmen" : "") + "</span>" +
-        '<span>Rahmen <b class="num">' + eur(rahmen) + "</b></span></div>"
-    : '<div class="eyebrow">bisher ausgegeben</div>' +
-      '<div class="hero-amount">' + eur(summe) + "</div>" +
+      drei + balken +
+      '<div class="ab-zeile"><span>' + (frei < 0 ? "Über den Rahmen verplant " : "Noch nicht verplant ") +
+        '<b class="num"' + (frei < 0 ? ' style="color:var(--neg)"' : "") + ">" + eur(Math.abs(frei)) + "</b></span>" +
+        "<span>" + nf0.format(Math.round(summe/rahmen*100)) + " % vom Rahmen bezahlt</span></div>"
+    : '<div class="eyebrow">bisher bezahlt</div>' +
+      '<div class="hero-amount">' + eur(summe) + "</div>" + drei +
       '<p class="note" style="margin:10px 0 0">Noch kein Rahmen gesetzt — in den Einstellungen unter „Hausausbau“ eintragen, dann rechnet die App mit.</p>';
 
   const d = start ? new Date(start + "T00:00:00") : null;
@@ -2121,19 +2210,28 @@ function renderAusbau(){
   $("#ausbauAnzahl").textContent = posten.length
     ? posten.length + (posten.length === 1 ? " Posten · " : " Posten · ") + eur(summe) : "";
 
-  // Nach Gewerk, absteigend — zeigt, wo das Geld hingeht.
-  const jeGewerk = {};
-  posten.forEach(([,p]) => { jeGewerk[p.g || ""] = (jeGewerk[p.g || ""] || 0) + (Number(p.a)||0); });
-  const sortiert = Object.entries(jeGewerk).sort((a,b) => b[1] - a[1]);
-  const groesstes = sortiert.length ? sortiert[0][1] : 1;
+  // Nach Gewerk: Bezahltes gegen Geplantes. Mit Plan fuellt sich der Balken
+  // bis zum Planwert, ohne Plan relativ zum groessten Gewerk.
+  const jeGewerk = jeGewerkSumme(state.ausbauPosten);
+  const jePlan   = jeGewerkSumme(state.ausbauPlan);
+  const gids = Array.from(new Set(Object.keys(jeGewerk).concat(Object.keys(jePlan))));
+  const sortiert = gids.map(gid => [gid, jeGewerk[gid] || 0, jePlan[gid] || 0])
+    .sort((a,b) => (b[2] - a[2]) || (b[1] - a[1]));
+  const groesstes = Math.max(1, ...sortiert.map(x => x[1]));
   $("#ausbauGewerke").innerHTML = sortiert.length
-    ? sortiert.map(([gid, betrag]) => {
+    ? sortiert.map(([gid, betrag, plan]) => {
         const g = gewerkById(gid);
+        const ueber = plan > 0 && betrag > plan;
+        const breite = plan > 0 ? Math.min(100, betrag/plan*100) : (betrag/groesstes)*100;
         return '<div class="ab-gw"><span class="ab-gw-n">' + esc(g.name) + "</span>" +
-          '<span class="ab-gw-b"><i style="width:' + ((betrag/groesstes)*100).toFixed(1) + '%;background:' + catColor(g) + '"></i></span>' +
-          '<span class="ab-gw-s num">' + eur(betrag) + "</span></div>";
+          '<span class="ab-gw-b"><i style="width:' + breite.toFixed(1) + '%;background:' +
+            (ueber ? "var(--warn-fill)" : catColor(g)) + '"></i></span>' +
+          '<span class="ab-gw-s num">' + eur(betrag) + (plan > 0 ? '<span class="von"> / ' + eur(plan) + "</span>" : "") + "</span>" +
+          (ueber ? '<span class="ab-gw-ueber">' + eur(betrag - plan) + " über Plan</span>" : "") + "</div>";
       }).join("")
     : '<p class="empty">Noch nichts eingetragen.</p>';
+
+  renderPlanListe();
 
   // Liste, nach Monat gruppiert: der Ausbau laeuft ueber Jahre, Tagesbloecke
   // waeren zu kleinteilig.
@@ -2167,7 +2265,55 @@ function renderAusbau(){
   }).join("");
 }
 
+function renderPlanListe(){
+  if (!state.ausbauPlanReady){
+    $("#planListe").innerHTML = '<p class="empty">Für „Geplant“ fehlt noch die Tabelle in der Datenbank.<br>' +
+      'Führ den Nachtrag „Hausausbau geplant“ aus <code>schema.sql</code> in Supabase aus.</p>';
+    $("#planAnzahl").textContent = "";
+    return;
+  }
+  const posten = Object.entries(state.ausbauPlan);
+  $("#planAnzahl").textContent = posten.length ? posten.length + " Posten · " + eur(planSumme()) : "";
+  if (!posten.length){
+    $("#planListe").innerHTML = '<p class="empty">Noch nichts geplant.<br>Betrag oben eintragen und Enter drücken.</p>';
+    return;
+  }
+  const gruppen = {};
+  posten.forEach(([id,p]) => { (gruppen[p.g || ""] = gruppen[p.g || ""] || []).push([id,p]); });
+  const jeGewerk = jeGewerkSumme(state.ausbauPosten);
+  $("#planListe").innerHTML = Object.entries(gruppen)
+    .map(([gid, rows]) => [gid, rows, rows.reduce((s,[,p]) => s + (Number(p.a)||0), 0)])
+    .sort((a,b) => b[2] - a[2])
+    .map(([gid, rows, summe]) => {
+      const g = gewerkById(gid);
+      const bezahlt = jeGewerk[gid] || 0;
+      return '<div class="ab-pg"><div class="ab-pg-h"><span><span class="dotchip" style="background:' + catColor(g) + '"></span>' +
+        esc(g.name) + '</span><span class="num ab-plan-farbe">' + eur(summe) + "</span></div>" +
+        (bezahlt > 0 ? '<div class="note" style="margin:0 0 4px;font-size:12.5px">davon bezahlt ' + eur(bezahlt) + "</div>" : "") +
+        rows.sort((a,b) => (a[1].t||0) - (b[1].t||0)).map(([id,p]) =>
+          '<div class="item' + (state.editPlan === id ? " editing" : "") + '">' +
+          '<div class="item-main"><div class="t">' + esc(p.n || g.name) + "</div></div>" +
+          '<div class="amt num">' + eur(p.a) + "</div>" +
+          '<div class="rowbtns"><button class="icon-btn edit" type="button" data-pledit="' + id + '" aria-label="Bearbeiten">&#9998;</button>' +
+          '<button class="icon-btn" type="button" data-pldel="' + id + '" aria-label="Löschen">&#10005;</button></div></div>'
+        ).join("") + "</div>";
+    }).join("");
+}
+
+function fillPlanGewerkSelect(){
+  const el = $("#pGewerk"); if (!el) return;
+  const sortiert = state.ausbauGewerke.slice()
+    .sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
+  const keep = el.value;
+  const bearbeitet = ((state.editPlan && state.ausbauPlan[state.editPlan]) || {}).g || "";
+  el.innerHTML = sortiert.map(g => '<option value="' + esc(g.id) + '">' + esc(g.name) + "</option>").join("") +
+                 '<option value="__new__">+ Neues Gewerk…</option>';
+  const ziel = bearbeitet || keep;
+  if (ziel && ziel !== "__new__" && Array.from(el.options).some(o => o.value === ziel)) el.value = ziel;
+}
+
 function fillGewerkSelect(){
+  fillPlanGewerkSelect();
   const el = $("#aGewerk"); if (!el) return;
   const sortiert = state.ausbauGewerke.slice()
     .sort((a,b) => String(a.name).localeCompare(String(b.name), "de", { sensitivity: "base" }));
@@ -2565,6 +2711,81 @@ $("#ausbauListe").addEventListener("click", async e => {
   }
 });
 
+// ---------------------------------------------------------------------------
+//  Hausausbau — Geplant / Bezahlt umschalten und Plan-Posten pflegen
+// ---------------------------------------------------------------------------
+document.querySelectorAll("[data-abansicht]").forEach(b => b.addEventListener("click", () => {
+  state.ausbauAnsicht = b.dataset.abansicht;
+  try{ localStorage.setItem(LS_AB_ANSICHT, state.ausbauAnsicht); }catch(e){}
+  renderAusbau();
+}));
+
+function resetPlanForm(){
+  state.editPlan = null;
+  $("#planForm").reset();
+  $("#planFormTitel").textContent = "Neuer Plan-Posten";
+  $("#pSubmit").textContent = "Planen";
+  $("#pCancel").hidden = true;
+  fillPlanGewerkSelect();
+}
+
+$("#planForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!state.ausbauPlanReady){ toast("Dafür fehlt noch die Tabelle ausbau_plan in der Datenbank"); return; }
+  const a = parseAmount($("#pAmount").value);
+  if (!isFinite(a) || a === 0){ toast("Bitte einen Betrag eingeben, z. B. 8.000"); $("#pAmount").focus(); return; }
+  const gw = $("#pGewerk").value;
+  const row = {
+    household_id: state.household.id,
+    amount: Math.abs(a),
+    gewerk_id: (gw && gw !== "__new__") ? gw : null,
+    note: $("#pNote").value.trim() || null
+  };
+  const id = state.editPlan, warEdit = !!id;
+  const ok = await guard(() => id ? sb.from("ausbau_plan").update(row).eq("id", id)
+                                  : sb.from("ausbau_plan").insert(row));
+  if (!ok) return;
+  resetPlanForm();
+  await loadAusbau();
+  render();
+  toast(warEdit ? "Plan geändert" : eur(Math.abs(a)) + " eingeplant");
+  $("#pAmount").focus();
+});
+
+$("#pCancel").addEventListener("click", () => { resetPlanForm(); render(); });
+
+$("#planListe").addEventListener("click", async e => {
+  const del = e.target.closest("[data-pldel]"), ed = e.target.closest("[data-pledit]");
+  if (del){
+    const id = del.dataset.pldel, p = state.ausbauPlan[id]; if (!p) return;
+    if (!confirm("Diesen Plan-Posten löschen?\n\n" + (p.n || gewerkById(p.g).name) + " · " + eur(p.a))) return;
+    if (await guard(() => sb.from("ausbau_plan").delete().eq("id", id))){
+      if (state.editPlan === id) resetPlanForm();
+      delete state.ausbauPlan[id]; render(); toast("Plan-Posten gelöscht");
+    }
+  } else if (ed){
+    const id = ed.dataset.pledit, p = state.ausbauPlan[id]; if (!p) return;
+    state.editPlan = id;
+    render();
+    $("#pAmount").value = nf.format(p.a); $("#pNote").value = p.n || "";
+    $("#pGewerk").value = p.g || "";
+    $("#planFormTitel").textContent = "Plan-Posten bearbeiten";
+    $("#pSubmit").textContent = "Speichern";
+    $("#pCancel").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    $("#pAmount").focus();
+  }
+});
+
+$("#pGewerk").addEventListener("change", async e => {
+  if (e.target.value !== "__new__") return;
+  const name = (prompt("Name des neuen Gewerks?") || "").trim();
+  if (!name){ fillPlanGewerkSelect(); return; }
+  const neu = await gewerkAnlegen(name);
+  fillPlanGewerkSelect();
+  if (neu) $("#pGewerk").value = neu;
+});
+
 // Gewerk direkt aus der Auswahl anlegen, wie bei den Kategorien.
 $("#aGewerk").addEventListener("change", async e => {
   if (e.target.value !== "__new__") return;
@@ -2614,7 +2835,8 @@ $("#gewerkForm").addEventListener("submit", async e => {
 $("#gewerkListe").addEventListener("click", async e => {
   const d = e.target.closest("[data-gwdel]"); if (!d) return;
   const g = gewerkById(d.dataset.gwdel);
-  const benutzt = Object.values(state.ausbauPosten).some(p => p.g === g.id);
+  const benutzt = Object.values(state.ausbauPosten).some(p => p.g === g.id) ||
+                  Object.values(state.ausbauPlan).some(p => p.g === g.id);
   if (!confirm(benutzt
       ? g.name + " löschen?\n\nDie Posten bleiben erhalten und stehen danach ohne Gewerk da."
       : g.name + " löschen?")) return;

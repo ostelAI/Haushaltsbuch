@@ -8,6 +8,30 @@ Format je Eintrag: Datum · Version · Wunsch (in Christians Worten, sinngemäß
 
 ---
 
+## 2026-11-11 · v1.6.00 · Erklärungen, ehrliches Tagesbudget, abgesetzte Filter
+
+**Wunsch:** Christian fiel auf, dass „Pro Tag noch 51,36 €“ und die Prognose „ca. 34 €/Tag“
+sich zu widersprechen schienen. Nachfrage ergab: kein Rechenfehler, aber die obere Zahl
+kannte das Monatsbudget nicht. Dazu: „Es muss richtig als Erklärung dastehen oder mach ein
+kleines Fragezeichen hin, das aufploppt.“ Und: Die neuen Suchfelder „überliest man“, sie
+müssten „eingekesselt“ sein — Eingabe, Suchfeld und Liste als getrennte Blöcke.
+
+**Umgesetzt:**
+- **Pro Tag noch** rechnet bei gesetztem Monatsbudget gegen dieses Budget
+  (`min(rest, budget − variable) / Resttage`) statt gegen alles Verfügbare. Bei Christians
+  Zahlen: 30,85 € statt 51,36 €. Darunter steht dann „· vom Budget“, damit die Grundlage
+  sichtbar ist. Ohne Budget bleibt es wie vorher.
+- **Fragezeichen** (antippbar, eigenes Fenster — `title` hilft auf dem Handy nicht) bei
+  Noch verfügbar, Pro Tag noch, der Status-Ampel, Monatliches Budget, Prognose und
+  Hausausbau. Texte in der Konstante `HILFE`. Der Prognose-Text betont, dass sie eine
+  **Messung** ist und keine Erlaubnis — genau das war Christian nicht mehr präsent.
+- **Filterkasten:** Such- und Sortierfelder sitzen in `.filterbox` mit eigenem Hintergrund,
+  Rahmen und der Überschrift „Suchen und sortieren“. Gilt auch für „Ausgaben im Monat“.
+- **Fixkosten und Einnahmen** sind in zwei Karten geteilt: „Neue feste Ausgabe“ /
+  „Alle festen Ausgaben“ (analog bei Einnahmen), mit Posten-Zähler im Kopf.
+
+**Offen:** Keine Datenbankänderung nötig.
+
 ## 2026-11-11 · v1.5.03 · Filter in Fixkosten und Einnahmen
 
 **Wunsch:** „Kannst du bitte in den Fixkosten einen Filter mit einbauen, wo man nach

@@ -207,13 +207,38 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-betrag{font-weight:600;white-space:nowrap}
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
 
-/* ---------- Filterzeile über Fixkosten und Einnahmen ---------- */
-.filterzeile{display:grid;gap:10px;margin:18px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+/* ---------- Fragezeichen mit Erklärung ---------- */
+.hilfe{display:inline-grid;place-items:center;width:17px;height:17px;flex:none;
+  border:1px solid var(--line-strong);border-radius:50%;background:none;color:var(--ink-3);
+  font-family:"Public Sans",sans-serif;font-size:11px;font-weight:700;line-height:1;
+  cursor:pointer;padding:0;vertical-align:1px;margin-left:5px}
+.hilfe:hover{border-color:var(--ink-3);color:var(--ink);background:var(--surface-2)}
+.hilfe:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hilfe-box{width:min(460px,100%)}
+.hilfe-box .neu-inhalt{padding:14px 16px 18px}
+.hilfe-box p{margin:0 0 10px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.hilfe-box p:last-child{margin-bottom:0}
+.hilfe-box .rechnung{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-2);
+  background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px}
+.hilfe-box b{color:var(--ink)}
+
+/* ---------- Suchen und Filtern: eigener Kasten ---------- */
+/* Vorher standen die Felder lose über der Liste und wurden beim Scrollen
+   überlesen — sie sahen aus wie ein Teil der Liste. Jetzt sind sie als
+   eigenes Werkzeug abgesetzt. */
+.filterbox{background:var(--surface-2);border:1px solid var(--line-strong);
+  border-radius:10px;padding:11px 12px 12px;margin-bottom:14px}
+.filterbox-kopf{font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--ink-3);margin-bottom:9px}
+.filterzeile{display:grid;gap:9px}
 @media(min-width:660px){
+  #dayFilter .filterzeile{grid-template-columns:1fr 1fr}
   #fixFilter{grid-template-columns:1fr 1fr 1fr}
   #incFilter{grid-template-columns:1fr auto 1fr}
 }
-.filterzeile input,.filterzeile select{font-size:14px;padding:8px 10px}
+.filterzeile input,.filterzeile select{font-size:14px;padding:8px 10px;background:var(--surface)}
+.filterbox-treffer{margin:10px 0 0;padding-top:9px;border-top:1px solid var(--line-strong);
+  font-size:12.5px;color:var(--ink-2)}
 
 /* ---------- Hausausbau ---------- */
 .ab-bar{height:10px;border-radius:999px;background:var(--surface-2);margin:14px 0 9px;overflow:hidden;display:flex}
@@ -575,12 +600,12 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <div class="card hero">
       <div class="hero-top">
         <div>
-          <div class="eyebrow">Noch verfügbar · <span id="heroMonth"></span></div>
+          <div class="eyebrow">Noch verfügbar · <span id="heroMonth"></span><button class="hilfe" type="button" data-hilfe="verfuegbar" aria-label="Noch verfügbar erklärt">?</button></div>
           <div class="hero-amount num" id="heroAmount">—</div>
           <div id="heroStatus" style="margin-top:10px"></div>
         </div>
         <div class="hero-side">
-          <div class="eyebrow">Pro Tag noch</div>
+          <div class="eyebrow">Pro Tag noch<button class="hilfe" type="button" data-hilfe="proTag" aria-label="Pro Tag noch erklärt">?</button></div>
           <div class="v num" id="heroPerDay">—</div>
           <div class="tagline" id="heroDays"></div>
         </div>
@@ -638,9 +663,12 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     <div class="card">
       <div class="card-h"><h2>Ausgaben im Monat</h2><span class="eyebrow" id="expCount"></span></div>
       <div class="card-b">
-        <div class="row r-2" style="margin-bottom:14px">
-          <label class="f"><span>Kategorie filtern</span><select id="fCat"></select></label>
-          <label class="f"><span>Suchen</span><input id="fText" placeholder="Text im Eintrag"></label>
+        <div class="filterbox" id="dayFilter">
+          <div class="filterbox-kopf">Suchen und filtern</div>
+          <div class="filterzeile">
+            <label class="f"><span>Suchen</span><input id="fText" placeholder="Text im Eintrag"></label>
+            <label class="f"><span>Kategorie</span><select id="fCat"></select></label>
+          </div>
         </div>
         <div class="list" id="expList"></div>
       </div>
@@ -677,17 +705,26 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <button class="btn ghost" type="button" id="xCancel" hidden>Abbrechen</button>
           </div>
         </form>
-        <div class="filterzeile" id="fixFilter">
-          <label class="f"><span>Suchen</span><input id="fxText" placeholder="z. B. Versicherung"></label>
-          <label class="f"><span>Kategorie</span><select id="fxCat"></select></label>
-          <label class="f"><span>Sortieren</span><select id="fxSort">
-            <option value="kat">Kategorie, dann Tag</option>
-            <option value="name">Name A–Z</option>
-            <option value="betrag">Betrag, größte zuerst</option>
-            <option value="tag">Fällig am, früheste zuerst</option>
-          </select></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Alle festen Ausgaben</h2><span class="eyebrow" id="fixAnzahl"></span></div>
+      <div class="card-b">
+        <div class="filterbox">
+          <div class="filterbox-kopf">Suchen und sortieren</div>
+          <div class="filterzeile" id="fixFilter">
+            <label class="f"><span>Suchen</span><input id="fxText" placeholder="z. B. Versicherung"></label>
+            <label class="f"><span>Kategorie</span><select id="fxCat"></select></label>
+            <label class="f"><span>Sortieren</span><select id="fxSort">
+              <option value="kat">Kategorie, dann Tag</option>
+              <option value="name">Name A–Z</option>
+              <option value="betrag">Betrag, größte zuerst</option>
+              <option value="tag">Fällig am, früheste zuerst</option>
+            </select></label>
+          </div>
+          <p class="filterbox-treffer" id="fixTreffer" hidden></p>
         </div>
-        <p class="tagline" id="fixTreffer" hidden></p>
         <div class="list" id="fixList"></div>
       </div>
     </div>
@@ -723,16 +760,25 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <button class="btn ghost" type="button" id="iCancel" hidden>Abbrechen</button>
           </div>
         </form>
-        <div class="filterzeile" id="incFilter">
-          <label class="f"><span>Suchen</span><input id="inText" placeholder="z. B. Gehalt"></label>
-          <label class="f" id="inPersonWrap" hidden><span>Wer</span><select id="inPerson"></select></label>
-          <label class="f"><span>Sortieren</span><select id="inSort">
-            <option value="tag">Tag, früheste zuerst</option>
-            <option value="name">Name A–Z</option>
-            <option value="betrag">Betrag, größte zuerst</option>
-          </select></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Alle Einnahmen</h2><span class="eyebrow" id="incAnzahl"></span></div>
+      <div class="card-b">
+        <div class="filterbox">
+          <div class="filterbox-kopf">Suchen und sortieren</div>
+          <div class="filterzeile" id="incFilter">
+            <label class="f"><span>Suchen</span><input id="inText" placeholder="z. B. Gehalt"></label>
+            <label class="f" id="inPersonWrap" hidden><span>Wer</span><select id="inPerson"></select></label>
+            <label class="f"><span>Sortieren</span><select id="inSort">
+              <option value="tag">Tag, früheste zuerst</option>
+              <option value="name">Name A–Z</option>
+              <option value="betrag">Betrag, größte zuerst</option>
+            </select></label>
+          </div>
+          <p class="filterbox-treffer" id="incTreffer" hidden></p>
         </div>
-        <p class="tagline" id="incTreffer" hidden></p>
         <div class="list" id="incList"></div>
       </div>
     </div>
@@ -789,7 +835,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
     </div>
 
     <div class="card">
-      <div class="card-h"><h2>Hausausbau</h2><span class="eyebrow" id="ausbauSpanne"></span></div>
+      <div class="card-h"><h2>Hausausbau<button class="hilfe" type="button" data-hilfe="ausbau" aria-label="Hausausbau erklärt">?</button></h2><span class="eyebrow" id="ausbauSpanne"></span></div>
       <div class="card-b">
         <div id="ausbauKopf"></div>
         <p class="note" style="margin:13px 0 0;padding-top:12px;border-top:1px solid var(--line)">
@@ -1020,6 +1066,15 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 </div>
 </div>
 
+<div class="neu-lage" id="hilfeLage" hidden>
+  <div class="neu-box hilfe-box" role="dialog" aria-modal="true" aria-labelledby="hilfeTitel">
+    <div class="neu-kopf">
+      <h2 id="hilfeTitel"></h2>
+      <button class="neu-zu" id="hilfeZu" type="button" aria-label="Schließen">&times;</button>
+    </div>
+    <div class="neu-inhalt" id="hilfeText"></div>
+  </div>
+</div>
 <div class="neu-lage" id="neuLage" hidden>
   <div class="neu-box" role="dialog" aria-modal="true" aria-labelledby="neuTitel">
     <div class="neu-kopf">
@@ -1037,7 +1092,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.5.03";
+const APP_VERSION = "1.6.00";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1054,6 +1109,12 @@ const LS_AB_ANSICHT = "haushaltsbuch.ausbauAnsicht";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.6.00", d: "2026-11-11", punkte: [
+      "„Pro Tag noch“ rechnet jetzt gegen euer Monatsbudget, wenn eines gesetzt ist — vorher nannte es einen größeren Betrag, als ihr euch selbst vorgenommen hattet.",
+      "Neue Fragezeichen bei „Noch verfügbar“, „Pro Tag noch“, der Ampel, „Monatliches Budget“, „Prognose“ und beim Hausausbau: antippen und nachlesen, wie die Zahl zustande kommt.",
+      "Such- und Sortierfelder sitzen jetzt in einem abgesetzten Kasten, statt lose über der Liste zu stehen.",
+      "Fixkosten und Einnahmen: Eingabe und Liste sind getrennte Karten — man sieht sofort, wo das Eintragen aufhört und die Übersicht anfängt."
+    ]},
   { v: "1.5.03", d: "2026-11-11", punkte: [
       "Fixkosten und Einnahmen haben jetzt eine Filterzeile: Suchfeld, Sortierung und — bei den Fixkosten — ein Kategoriefilter.",
       "Sortieren nach Name A–Z, nach Betrag oder nach Fälligkeitstag. Die Wahl bleibt gespeichert.",
@@ -1655,6 +1716,84 @@ function render(){
   fillGewerkSelect();
 }
 
+
+// ---------------------------------------------------------------------------
+//  Erklärungen hinter den Fragezeichen
+// ---------------------------------------------------------------------------
+// Mehrere Zahlen auf dem Überblick sehen ähnlich aus, meinen aber Verschiedenes
+// — besonders "Pro Tag noch" (eine Erlaubnis) und die Prognose (eine Messung).
+// Ein title-Attribut hilft auf dem Handy nicht, darum ein antippbares Fenster.
+const HILFE = {
+  verfuegbar: {
+    titel: "Noch verfügbar",
+    text: "<p>Was diesen Monat nach allem Geplanten übrig bleibt.</p>" +
+      "<p class='rechnung'>Einnahmen<br>− feste Kosten<br>− bereits ausgegeben<br>− Sparziel<br>= noch verfügbar</p>" +
+      "<p>Fixkosten zählen dabei für den ganzen Monat mit, auch wenn sie erst später abgebucht werden. " +
+      "Die Zahl sagt also: So viel bleibt am Ende übrig, wenn ab jetzt nichts Weiteres dazukommt.</p>"
+  },
+  proTag: {
+    titel: "Pro Tag noch",
+    text: "<p>Wie viel ihr ab heute <b>pro Tag ausgeben dürft</b>, damit es bis zum Monatsende reicht.</p>" +
+      "<p>Habt ihr ein monatliches Budget gesetzt, rechnet die Zahl <b>gegen dieses Budget</b> — " +
+      "also gegen das, was ihr euch selbst vorgenommen habt, nicht gegen alles, was theoretisch da wäre. " +
+      "Ohne Budget rechnet sie gegen „Noch verfügbar“.</p>" +
+      "<p>Das ist eine <b>Erlaubnis</b>, keine Vorhersage. Was ihr tatsächlich ausgebt, steht in der Kachel „Prognose“.</p>"
+  },
+  budget: {
+    titel: "Monatliches Budget",
+    text: "<p>Euer selbst gesetzter Rahmen für alles, was nicht fest ist — Lebensmittel, Tanken, Freizeit.</p>" +
+      "<p>Die große Zahl ist, was ihr davon diesen Monat schon ausgegeben habt. Darunter steht, wie viel vom Rahmen noch übrig ist.</p>" +
+      "<p>Ändern könnt ihr den Rahmen unter <b>Einstellungen → Monatsbudget für Variables</b>.</p>"
+  },
+  prognose: {
+    titel: "Prognose",
+    text: "<p>Keine Erlaubnis, sondern eine <b>Messung</b>: Wo ihr am Monatsende landet, wenn ihr so weitermacht wie bisher.</p>" +
+      "<p>Das Tempo („ca. 34 €/Tag“) kommt aus eurem bisherigen Monat und den letzten drei Monaten. " +
+      "Am Monatsanfang zählen die Vormonate stärker, später der laufende Monat.</p>" +
+      "<p><b>Große Einzelausgaben</b> zählen in die Summe, werden aber nicht auf den Rest des Monats hochgerechnet — " +
+      "eine einmalige Waschmaschine macht sonst die ganze Vorhersage kaputt.</p>" +
+      "<p>Die Kurve zeigt links den bisherigen Verlauf durchgezogen, rechts die Prognose gestrichelt. " +
+      "Die blasse Fläche ist die übliche Schwankung.</p>"
+  },
+  plan: {
+    titel: "Ihr liegt im Plan",
+    text: "<p>Eine schnelle Ampel für den Monat:</p>" +
+      "<p><b>Im Plan</b> — es bleibt etwas übrig und ihr habt unter 90 % der Einnahmen verplant.<br>" +
+      "<b>Es wird knapp</b> — über 90 % sind verplant.<br>" +
+      "<b>Über dem Budget</b> — rechnerisch bleibt nichts übrig.</p>" +
+      "<p>Gerechnet wird gegen die Einnahmen des Monats, Sparziel eingeschlossen.</p>"
+  },
+  ausbau: {
+    titel: "Hausausbau",
+    text: "<p>Eine eigene Buchführung, bewusst <b>getrennt vom Haushalt</b>: Nichts davon fließt in Überblick, " +
+      "Cashflow, Jahr oder das Monatsbudget ein.</p>" +
+      "<p><b>Kalkuliert</b> ist, was ihr für ein Gewerk eingeplant habt. <b>Aufgewendet</b> ist, was tatsächlich bezahlt wurde.</p>" +
+      "<p>Der Rahmen oben wird unter <b>Einstellungen → Hausausbau</b> gesetzt.</p>"
+  }
+};
+
+function hilfeKnopf(schluessel, label){
+  return '<button class="hilfe" type="button" data-hilfe="' + schluessel + '" aria-label="' +
+         esc(label || "Erklärung") + '">?</button>';
+}
+function hilfeOeffnen(schluessel){
+  const h = HILFE[schluessel]; if (!h) return;
+  $("#hilfeTitel").textContent = h.titel;
+  $("#hilfeText").innerHTML = h.text;
+  $("#hilfeLage").hidden = false;
+  $("#hilfeZu").focus();
+}
+function hilfeSchliessen(){ $("#hilfeLage").hidden = true; }
+
+document.addEventListener("click", e => {
+  const k = e.target.closest("[data-hilfe]");
+  if (k){ e.preventDefault(); hilfeOeffnen(k.dataset.hilfe); return; }
+  if (e.target.id === "hilfeLage" || e.target.id === "hilfeZu") hilfeSchliessen();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#hilfeLage").hidden) hilfeSchliessen();
+});
+
 function renderOverview(){
   const s = monthStats(state.ym, state.entries);
   $("#heroMonth").textContent = ymLabel(state.ym);
@@ -1667,11 +1806,20 @@ function renderOverview(){
   let cls = "good", label = "Ihr liegt im Plan";
   if (s.rest < 0){ cls = "bad"; label = "Über dem Budget"; }
   else if (ratio > 0.9){ cls = "warn"; label = "Es wird knapp"; }
-  $("#heroStatus").innerHTML = '<span class="status ' + cls + '">' + (cls==="bad" ? "&#9679;" : cls==="warn" ? "&#9650;" : "&#10003;") + " " + label + "</span>";
+  $("#heroStatus").innerHTML = '<span class="status ' + cls + '">' + (cls==="bad" ? "&#9679;" : cls==="warn" ? "&#9650;" : "&#10003;") + " " + label + "</span>" +
+    hilfeKnopf("plan", "Was heißt das?");
 
   const dl = daysLeftIn(state.ym);
-  $("#heroPerDay").textContent = dl > 0 ? eur(s.rest / dl) : "—";
-  $("#heroDays").textContent = dl > 0 ? (dl === 1 ? "letzter Tag im Monat" : "noch " + dl + " Tage") : "Monat abgeschlossen";
+  // Gibt es ein Monatsbudget, ist das die engere Schranke: Was theoretisch noch
+  // da waere, hilft nicht, wenn man sich selbst weniger vorgenommen hat. Ohne
+  // Budget bleibt es bei "noch verfuegbar".
+  const budget = Number(state.plan.budget) || 0;
+  const topf = budget > 0 ? Math.min(s.rest, budget - s.variable) : s.rest;
+  $("#heroPerDay").textContent = dl > 0 ? eur(topf / dl) : "—";
+  $("#heroDays").textContent = dl > 0
+    ? (dl === 1 ? "letzter Tag im Monat" : "noch " + dl + " Tage") +
+      (budget > 0 && (budget - s.variable) <= s.rest ? " · vom Budget" : "")
+    : "Monat abgeschlossen";
 
   const base = Math.max(s.income, spent, 1);
   const pct = v => Math.max(0, (v / base) * 100);
@@ -1694,8 +1842,9 @@ function renderOverview(){
   renderBreakdown();
   renderRecent();
 }
-function kpi(cls, label, value, sub, subFarbe, balken){
-  return '<div class="kpi ' + cls + '"><div class="eyebrow">' + esc(label) + '</div>' +
+function kpi(cls, label, value, sub, subFarbe, balken, hilfe){
+  return '<div class="kpi ' + cls + '"><div class="eyebrow">' + esc(label) +
+    (hilfe ? hilfeKnopf(hilfe, label + " erklärt") : "") + '</div>' +
     '<div class="v num">' + esc(value) + "</div>" +
     (balken || "") +
     '<div class="sub"' + (subFarbe ? ' style="color:' + subFarbe + '"' : "") + ">" + esc(sub) + "</div></div>";
@@ -1706,7 +1855,7 @@ function kpi(cls, label, value, sub, subFarbe, balken){
 function varKpi(s){
   const budget = state.monatsbudgetReady ? (Number(state.plan.budget) || 0) : 0;
   if (budget <= 0)
-    return kpi("k-var", "Monatliches Budget", eur(s.variable), Object.keys(state.entries).length + " Einträge");
+    return kpi("k-var", "Monatliches Budget", eur(s.variable), Object.keys(state.entries).length + " Einträge", null, null, "budget");
 
   const rest = budget - s.variable;
   const anteil = Math.max(0, Math.min(100, (s.variable / budget) * 100));
@@ -1715,7 +1864,7 @@ function varKpi(s){
   const sub = rest >= 0
     ? "noch " + eur(rest) + " von " + eur(budget)
     : eur(-rest) + " über dem Budget von " + eur(budget);
-  return kpi("k-var", "Monatliches Budget", eur(s.variable), sub, farbe, balken);
+  return kpi("k-var", "Monatliches Budget", eur(s.variable), sub, farbe, balken, "budget");
 }
 
 /* ---------------------------- Prognose ----------------------------
@@ -1832,7 +1981,8 @@ function prognoseKpi(){
     ? (f.budget > 0 ? "vom Budget " + eurShort(f.budget) + " · ca. " : "Monatsende · ca. ") + eurShort(f.rate) + "/Tag"
     : (f.budget > 0 ? "vom Budget " + eurShort(f.budget) + " übrig" : "Endstand des Monats");
   const tip = f.grossAnzahl ? ' title="Große Einzelausgaben (' + esc(eurShort(f.grossSumme)) + ') zählen mit, werden aber nicht hochgerechnet."' : "";
-  return '<div class="kpi k-day"' + tip + '><div class="eyebrow">' + (f.budget > 0 ? "Prognose Budget" : "Prognose") + '</div>' +
+  return '<div class="kpi k-day"' + tip + '><div class="eyebrow">' + (f.budget > 0 ? "Prognose Budget" : "Prognose") +
+    hilfeKnopf("prognose", "Prognose erklärt") + '</div>' +
     '<div class="v num" style="color:' + farbe + '">' + esc(eurSigned(f.ende)) + "</div>" +
     miniForecast(f, farbe) +
     '<div class="sub">' + esc(sub) + "</div></div>";
@@ -2043,6 +2193,7 @@ function renderIncome(){
       eur(liste.reduce((s,[,i]) => s + (Number(i.amount)||0), 0))
     : "";
 
+  $("#incAnzahl").textContent = alle.length ? alle.length + (alle.length === 1 ? " Posten" : " Posten") : "";
   $("#incList").innerHTML = liste.length ? liste.map(([id,i]) => planRow(id, i, "income")).join("")
     : (alle.length
         ? '<p class="empty">Keine Einnahme passt zu diesem Filter.</p>'
@@ -2067,6 +2218,7 @@ function renderFixed(){
       eur(liste.reduce((s,[,f]) => s + (Number(f.amount)||0), 0)) + " im Monat"
     : "";
 
+  $("#fixAnzahl").textContent = alle.length ? alle.length + (alle.length === 1 ? " Posten" : " Posten") : "";
   $("#fixList").innerHTML = liste.length ? liste.map(([id,f]) => planRow(id, f, "fixed")).join("")
     : (alle.length
         ? '<p class="empty">Keine feste Ausgabe passt zu diesem Filter.</p>'

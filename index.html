@@ -207,6 +207,14 @@ nav.tabs button[aria-current="true"]{background:var(--accent);color:var(--on-acc
 .brk-betrag{font-weight:600;white-space:nowrap}
 .brk-leer{color:var(--ink-3);font-size:13px;margin:0}
 
+/* ---------- Filterzeile über Fixkosten und Einnahmen ---------- */
+.filterzeile{display:grid;gap:10px;margin:18px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+@media(min-width:660px){
+  #fixFilter{grid-template-columns:1fr 1fr 1fr}
+  #incFilter{grid-template-columns:1fr auto 1fr}
+}
+.filterzeile input,.filterzeile select{font-size:14px;padding:8px 10px}
+
 /* ---------- Hausausbau ---------- */
 .ab-bar{height:10px;border-radius:999px;background:var(--surface-2);margin:14px 0 9px;overflow:hidden;display:flex}
 .ab-bar>i{display:block;height:100%;border-radius:999px}
@@ -669,7 +677,18 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <button class="btn ghost" type="button" id="xCancel" hidden>Abbrechen</button>
           </div>
         </form>
-        <div class="list" id="fixList" style="margin-top:16px"></div>
+        <div class="filterzeile" id="fixFilter">
+          <label class="f"><span>Suchen</span><input id="fxText" placeholder="z. B. Versicherung"></label>
+          <label class="f"><span>Kategorie</span><select id="fxCat"></select></label>
+          <label class="f"><span>Sortieren</span><select id="fxSort">
+            <option value="kat">Kategorie, dann Tag</option>
+            <option value="name">Name A–Z</option>
+            <option value="betrag">Betrag, größte zuerst</option>
+            <option value="tag">Fällig am, früheste zuerst</option>
+          </select></label>
+        </div>
+        <p class="tagline" id="fixTreffer" hidden></p>
+        <div class="list" id="fixList"></div>
       </div>
     </div>
   </section>
@@ -704,7 +723,17 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
             <button class="btn ghost" type="button" id="iCancel" hidden>Abbrechen</button>
           </div>
         </form>
-        <div class="list" id="incList" style="margin-top:16px"></div>
+        <div class="filterzeile" id="incFilter">
+          <label class="f"><span>Suchen</span><input id="inText" placeholder="z. B. Gehalt"></label>
+          <label class="f" id="inPersonWrap" hidden><span>Wer</span><select id="inPerson"></select></label>
+          <label class="f"><span>Sortieren</span><select id="inSort">
+            <option value="tag">Tag, früheste zuerst</option>
+            <option value="name">Name A–Z</option>
+            <option value="betrag">Betrag, größte zuerst</option>
+          </select></label>
+        </div>
+        <p class="tagline" id="incTreffer" hidden></p>
+        <div class="list" id="incList"></div>
       </div>
     </div>
 
@@ -1008,7 +1037,7 @@ input[inputmode=decimal],input[type=number]{font-family:"IBM Plex Mono",monospac
 (function(){
 "use strict";
 
-const APP_VERSION = "1.5.02";
+const APP_VERSION = "1.5.03";
 
 /* ============================ Grundlagen ============================ */
 const CAT_VARS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8",
@@ -1025,6 +1054,11 @@ const LS_AB_ANSICHT = "haushaltsbuch.ausbauAnsicht";
 // Fassung hier einen Eintrag ergänzen und APP_VERSION hochsetzen — der Punkt
 // im Kopf fängt dann bei allen an zu blinken, bis sie ihn gelesen haben.
 const AENDERUNGEN = [
+  { v: "1.5.03", d: "2026-11-11", punkte: [
+      "Fixkosten und Einnahmen haben jetzt eine Filterzeile: Suchfeld, Sortierung und — bei den Fixkosten — ein Kategoriefilter.",
+      "Sortieren nach Name A–Z, nach Betrag oder nach Fälligkeitstag. Die Wahl bleibt gespeichert.",
+      "Bei aktivem Filter steht darunter, wie viele Posten passen und was sie zusammen ausmachen."
+    ]},
   { v: "1.5.02", d: "2026-10-26", punkte: [
       "Hausausbau: Jede Ansicht zieht jetzt ihren eigenen Betrag vom Rahmen ab. Unter „Kalkuliert“ steht oben, was nach eurer Kalkulation übrig bleibt, unter „Aufgewendet“, was nach den echten Ausgaben übrig ist."
 
@@ -1965,22 +1999,78 @@ function nachTagDannName(a, b){
   if (ta !== tb) return ta - tb;
   return String(a[1].name).localeCompare(String(b[1].name), "de");
 }
-function renderIncome(){
-  $("#incSum").textContent = "Summe " + eur(incomeFor(state.ym));
-  const inc = Object.entries(state.plan.income).sort(nachTagDannName);
-  $("#incList").innerHTML = inc.length ? inc.map(([id,i]) => planRow(id, i, "income")).join("")
-    : '<p class="empty">Noch keine Einnahme hinterlegt.<br>Gehalt, Kindergeld, Nebenjob — alles, was monatlich reinkommt.</p>';
+// Sortierungen für Fixkosten und Einnahmen. Die Wahl bleibt im Browser
+// gespeichert — wer nach Name sortiert, will das meist dauerhaft.
+function nachName(a, b){
+  return String(a[1].name).localeCompare(String(b[1].name), "de", { sensitivity: "base" });
 }
-function renderFixed(){
-  $("#fixSum").textContent = "Summe " + eur(fixedFor(state.ym));
-  const fx = Object.entries(state.plan.fixed).sort((a,b) => {
+function nachBetrag(a, b){
+  return (Number(b[1].amount)||0) - (Number(a[1].amount)||0) || nachName(a, b);
+}
+function sortierer(modus){
+  if (modus === "name")   return nachName;
+  if (modus === "betrag") return nachBetrag;
+  if (modus === "tag")    return nachTagDannName;
+  // "kat": Kategorie, dann Tag — die bisherige Reihenfolge der Fixkosten
+  return (a, b) => {
     const ka = catById(a[1].cat).name.toLocaleLowerCase("de");
     const kb = catById(b[1].cat).name.toLocaleLowerCase("de");
     if (ka !== kb) return ka.localeCompare(kb, "de");
     return nachTagDannName(a, b);
-  });
-  $("#fixList").innerHTML = fx.length ? fx.map(([id,f]) => planRow(id, f, "fixed")).join("")
-    : '<p class="empty">Noch keine feste Ausgabe hinterlegt.<br>Miete, Strom, Handy, Versicherungen, Abos.</p>';
+  };
+}
+function merkeSort(schluessel, wert){
+  try { localStorage.setItem("haushaltsbuch." + schluessel, wert); } catch(e){}
+}
+function holeSort(schluessel, standard){
+  try { return localStorage.getItem("haushaltsbuch." + schluessel) || standard; } catch(e){ return standard; }
+}
+
+function renderIncome(){
+  $("#incSum").textContent = "Summe " + eur(incomeFor(state.ym));
+  const alle = Object.entries(state.plan.income);
+  const text = ($("#inText").value || "").trim().toLowerCase();
+  const wer  = $("#inPerson").value || "";
+  const liste = alle.filter(([,i]) =>
+    (!text || String(i.name).toLowerCase().includes(text) || String(i.person||"").toLowerCase().includes(text)) &&
+    (!wer  || (i.person || "") === wer)
+  ).sort(sortierer($("#inSort").value));
+
+  $("#incTreffer").hidden = !(text || wer);
+  $("#incTreffer").textContent = (text || wer)
+    ? liste.length + (liste.length === 1 ? " von " : " von ") + alle.length +
+      (alle.length === 1 ? " Einnahme" : " Einnahmen") + " · " +
+      eur(liste.reduce((s,[,i]) => s + (Number(i.amount)||0), 0))
+    : "";
+
+  $("#incList").innerHTML = liste.length ? liste.map(([id,i]) => planRow(id, i, "income")).join("")
+    : (alle.length
+        ? '<p class="empty">Keine Einnahme passt zu diesem Filter.</p>'
+        : '<p class="empty">Noch keine Einnahme hinterlegt.<br>Gehalt, Kindergeld, Nebenjob — alles, was monatlich reinkommt.</p>');
+}
+
+function renderFixed(){
+  $("#fixSum").textContent = "Summe " + eur(fixedFor(state.ym));
+  const alle = Object.entries(state.plan.fixed);
+  const text = ($("#fxText").value || "").trim().toLowerCase();
+  const kat  = $("#fxCat").value || "";
+  const liste = alle.filter(([,f]) =>
+    (!text || String(f.name).toLowerCase().includes(text) ||
+              catById(f.cat).name.toLowerCase().includes(text)) &&
+    (!kat  || (f.cat || "") === kat)
+  ).sort(sortierer($("#fxSort").value));
+
+  $("#fixTreffer").hidden = !(text || kat);
+  $("#fixTreffer").textContent = (text || kat)
+    ? liste.length + " von " + alle.length +
+      (alle.length === 1 ? " Posten" : " Posten") + " · " +
+      eur(liste.reduce((s,[,f]) => s + (Number(f.amount)||0), 0)) + " im Monat"
+    : "";
+
+  $("#fixList").innerHTML = liste.length ? liste.map(([id,f]) => planRow(id, f, "fixed")).join("")
+    : (alle.length
+        ? '<p class="empty">Keine feste Ausgabe passt zu diesem Filter.</p>'
+        : '<p class="empty">Noch keine feste Ausgabe hinterlegt.<br>Miete, Strom, Handy, Versicherungen, Abos.</p>');
 }
 
 function planRow(id, it, kind){
@@ -2473,7 +2563,7 @@ function fillCatSelects(){
   // Wird gerade ein Eintrag bearbeitet, gehört dessen Kategorie in die Liste,
   // auch wenn sie dort sonst ausgeblendet wäre.
   const bearbeitet = ((state.editEntry && state.entries[state.editEntry]) || {}).c || "";
-  [["#eCat","",true,"taeglich"],["#xCat","",true,"fix"],["#fCat",'<option value="">Alle Kategorien</option>',false,"alle"]].forEach(([sel,lead,withAdd,wo]) => {
+  [["#eCat","",true,"taeglich"],["#xCat","",true,"fix"],["#fCat",'<option value="">Alle Kategorien</option>',false,"alle"],["#fxCat",'<option value="">Alle Kategorien</option>',false,"alle"]].forEach(([sel,lead,withAdd,wo]) => {
     const el = $(sel); if (!el) return;
     const keep = el.value;
     el.innerHTML = lead + optionen(wo, sel === "#eCat" ? bearbeitet : "") + (withAdd ? addOpt : "");
@@ -2500,6 +2590,14 @@ function fillPersonSelects(){
     el.innerHTML = lead + ppl.map(p => '<option value="' + esc(p) + '">' + esc(p) + "</option>").join("");
     if (keep && Array.from(el.options).some(o=>o.value===keep)) el.value = keep;
   });
+  // Filterzeile der Einnahmen: nach Person filtern, wenn es Namen gibt
+  const ie = $("#inPerson");
+  if (ie){
+    $("#inPersonWrap").hidden = ppl.length === 0;
+    const k = ie.value;
+    ie.innerHTML = '<option value="">Alle</option>' + ppl.map(x => '<option value="' + esc(x) + '">' + esc(x) + "</option>").join("");
+    if (k && Array.from(ie.options).some(o=>o.value===k)) ie.value = k;
+  }
   fuelleIchBin();
 }
 
@@ -2888,6 +2986,18 @@ $("#expList").addEventListener("click", async e => {
 });
 $("#fCat").addEventListener("change", renderDaily);
 $("#fText").addEventListener("input", renderDaily);
+
+// Filter und Sortierung der Fixkosten und Einnahmen
+$("#fxText").addEventListener("input", renderFixed);
+$("#fxCat").addEventListener("change", renderFixed);
+$("#fxSort").addEventListener("change", e => { merkeSort("fixSort", e.target.value); renderFixed(); });
+$("#inText").addEventListener("input", renderIncome);
+$("#inPerson").addEventListener("change", renderIncome);
+$("#inSort").addEventListener("change", e => { merkeSort("incSort", e.target.value); renderIncome(); });
+
+// Gemerkte Sortierung beim Start setzen
+$("#fxSort").value = holeSort("fixSort", "kat");
+$("#inSort").value = holeSort("incSort", "tag");
 
 // Monatsauswahl für den Rhythmus, einmalig befüllt — ändert sich nie zur Laufzeit.
 (function fillMonthSelects(){

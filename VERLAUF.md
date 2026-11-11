@@ -8,6 +8,26 @@ Format je Eintrag: Datum · Version · Wunsch (in Christians Worten, sinngemäß
 
 ---
 
+## 2026-11-11 · v1.5.03 · Filter in Fixkosten und Einnahmen
+
+**Wunsch:** „Kannst du bitte in den Fixkosten einen Filter mit einbauen, wo man nach
+Versicherung suchen kann oder nach Alphabet oder nach… Genauso bei den Einnahmen.“
+Gemeint war die Filterzeile, die es bei „Ausgaben im Monat“ schon gibt.
+
+**Umgesetzt:**
+- Filterzeile über beiden Listen, gleiche Machart wie bei den täglichen Ausgaben.
+- Fixkosten: Suchfeld (trifft Bezeichnung **und** Kategoriename — „Versicherung“ findet
+  deshalb auch die Kfz-Versicherung unter Mobilität), Kategoriefilter, Sortierung nach
+  Kategorie+Tag (wie bisher), Name A–Z, Betrag absteigend oder Fälligkeitstag.
+- Einnahmen: Suchfeld (Name und Person), Personenfilter (nur sichtbar, wenn Namen
+  hinterlegt sind), Sortierung nach Tag, Name oder Betrag.
+- Bei aktivem Filter steht darunter „3 von 6 Posten · 192,59 € im Monat“ — die Summe
+  bezieht sich auf die Treffer, nicht auf alles.
+- Die Sortierwahl liegt im Browser (`haushaltsbuch.fixSort` / `.incSort`) und übersteht
+  einen Neustart; der Filtertext bewusst nicht, der soll bei jedem Besuch leer sein.
+
+**Offen:** Keine Datenbankänderung nötig.
+
 ## 2026-10-26 · v1.5.02 · Jede Ansicht zieht vom Rahmen ab
 
 **Wunsch:** „Es zieht nicht ab beim neuen Reiter, bei Kalkuliert — prüfe auch bei Aufgewendet.“
